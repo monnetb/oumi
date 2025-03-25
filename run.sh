@@ -1,7 +1,10 @@
 #!/bin/bash
 
+export OUMI_ROOT=$home
+export OUMI_GPU=NVIDIA
+
 # Activate the virtual environment
-source /home/users/monnetb/Work/oumi.venv/bin/activate
+source ${OUMI_ROOT}/oumi.venv.${OUMI_GPU}/bin/activate
 
 # Set MASTER_ADDR to the first allocated node and MASTER_PORT to 8000
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
