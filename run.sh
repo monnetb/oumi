@@ -1,10 +1,11 @@
 #!/bin/bash
 
-export OUMI_ROOT=$home
-export OUMI_GPU=NVIDIA
+export OUMI_ROOT=${OUMI_ROOT:-$HOME/oumi}
+export OUMI_GPU=${OUMI_GPU:-NVIDIA}
+export TGT=oumi.venv.${OUMI_GPU}
 
 # Activate the virtual environment
-source ${OUMI_ROOT}/oumi.venv.${OUMI_GPU}/bin/activate
+source ${OUMI_ROOT}/${TGT}/bin/activate
 
 # Set MASTER_ADDR to the first allocated node and MASTER_PORT to 8000
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -23,4 +24,4 @@ export MKL_NUM_THREADS=${OMP_NUM_THREADS}
 
 # Run the training command
 #oumi train -c ./train.yaml
-oumi distributed torchrun -m oumi train  -c $PWD/configs/recipes/llama3_3/sft/70b_full/train.yaml
+oumi distributed torchrun -m oumi train  -c $PWD/configs/recipes/llama3_3/sft/70b_full/train-h200.yaml
