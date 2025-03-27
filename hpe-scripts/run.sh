@@ -4,6 +4,15 @@ export OUMI_ROOT=${OUMI_ROOT:-$HOME/oumi}
 export OUMI_GPU=${OUMI_GPU:-NVIDIA}
 export TGT=oumi.venv.${OUMI_GPU}
 
+#check if a yaml file is provided with --yaml option. use argument as the yaml file
+if [ "$1" == "--yaml" ]; then
+    shift
+    export YAML_FILE=$1
+    shift
+else
+    export YAML_FILE="train-llama3.1-8b-h100.yaml"
+fi
+
 # Activate the virtual environment
 source ${OUMI_ROOT}/${TGT}/bin/activate
 
@@ -23,6 +32,4 @@ export MKL_NUM_THREADS=${OMP_NUM_THREADS}
 #export TORCHDYNAMO_CAPTURE_SCALAR_OUTPUTS=1
 
 # Run the training command
-#oumi train -c ./train.yaml
-#oumi distributed torchrun -m oumi train  -c $PWD/configs/recipes/llama3_3/sft/70b_full/train-h200.yaml
-oumi distributed torchrun -m oumi train  -c $PWD/train-llama3.1-8b-h100.yaml
+oumi distributed torchrun -m oumi train  -c $PWD/${YAML_FILE}
