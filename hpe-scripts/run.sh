@@ -13,6 +13,13 @@ else
     export YAML_FILE="train-llama3.1-8b-h100.yaml"
 fi
 
+#check if ${OUMI_ROOT}/${TGT} exists, if not exit and ask for OUMI_ROOT 
+if [ ! -d ${OUMI_ROOT}/${TGT} ]; then
+    echo "Please set OUMI_ROOT to the directory where the virtual environment is installed"
+    exit 1
+fi
+
+
 # Activate the virtual environment
 source ${OUMI_ROOT}/${TGT}/bin/activate
 
