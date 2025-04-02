@@ -32,4 +32,4 @@ export MKL_NUM_THREADS=${OMP_NUM_THREADS}
 #export TORCHDYNAMO_CAPTURE_SCALAR_OUTPUTS=1
 
 # Run the training command
-oumi distributed torchrun -m oumi train  -c $PWD/${YAML_FILE}
+oumi distributed torchrun --log-level INFO  -m oumi train  -c $PWD/${YAML_FILE}
