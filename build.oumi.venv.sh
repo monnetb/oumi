@@ -15,4 +15,6 @@ source ${OUMI_ROOT}/${TGT}/bin/activate
 
 pip install --upgrade  pip
 
-pip install oumi[gpu]
+pip3 install oumi[gpu] vllm
+
+#pip3 install vllm
