@@ -18,9 +18,10 @@ import os
 import shutil
 import sys
 import time
+import re
 from subprocess import Popen
 from sys import stderr, stdout
-from typing import Any, Final, NamedTuple, Optional
+from typing import Any, Final, NamedTuple, Optional ,List
 
 import typer
 
@@ -379,6 +380,62 @@ def _detect_polaris_process_run_info(env: dict[str, str]) -> Optional[_ProcessRu
         node_ips=node_ips,
     )
 
+def expand_slurm_nodelist(nodelist: str) -> List[str]:
+   
+    expanded = []
+    
+    # Split by comma to handle multiple node groups
+    groups = nodelist.split(',')
+    
+    for group in groups:
+        group = group.strip()
+        
+        # Pattern: prefix[range] or prefix[list]
+        match = re.match(r'^([A-Za-z][A-Za-z0-9_-]*)\[([^\]]+)\]$', group)
+        
+        if match:
+            prefix = match.group(1).lower()
+            range_part = match.group(2)
+            
+            # Handle ranges and lists within brackets
+            expanded.extend(_expand_bracket_content(prefix, range_part))
+        else:
+            # Simple hostname without brackets
+            expanded.append(group.lower())
+    
+    return expanded
+
+def _expand_bracket_content(prefix: str, content: str) -> List[str]:
+  
+    expanded = []
+    parts = content.split(',')
+    
+    for part in parts:
+        part = part.strip()
+        
+        # Check for range (e.g., "01-03" or "3-5")
+        range_match = re.match(r'^(\d+)-(\d+)$', part)
+        if range_match:
+            start = int(range_match.group(1))
+            end = int(range_match.group(2))
+            
+            # Preserve zero-padding
+            width = len(range_match.group(1))
+            
+            for i in range(start, end + 1):
+                if width > 1 and range_match.group(1).startswith('0'):
+                    # Zero-padded format
+                    expanded.append(f"{prefix}{i:0{width}d}")
+                else:
+                    # No zero-padding
+                    expanded.append(f"{prefix}{i}")
+        else:
+            # Single number
+            expanded.append(f"{prefix}{part}")
+    
+    return expanded
+
+
 
 def _detect_slurm_process_run_info(env: dict[str, str]) -> Optional[_ProcessRunInfo]:
     nodes_str = env.get("SLURM_NODELIST", None)
@@ -392,7 +449,8 @@ def _detect_slurm_process_run_info(env: dict[str, str]) -> Optional[_ProcessRunI
             )
     if not nodes_str:
         raise ValueError("Empty value in the 'SLURM_NODELIST' environment variable!")
-    node_ips = _parse_nodes_str(nodes_str)
+    #node_ips = _parse_nodes_str(nodes_str)
+    node_ips = expand_slurm_nodelist(nodes_str)
     if len(node_ips) == 0:
         raise RuntimeError("Empty list of nodes in 'PBS_NODEFILE'!")
     gpus_per_node = 8  # Per Frontier spec.
