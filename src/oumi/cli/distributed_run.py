@@ -184,6 +184,8 @@ def torchrun(
             if torchrun_available
             else ["python", "-m", "torch.distributed.run"]
         ) + [
+            f"--rdzv_backend=c10d",
+            f"--rdzv_endpoint={run_info.master_address}:{run_info.master_port}",
             f"--nnodes={run_info.num_nodes}",
             f"--node-rank={run_info.node_rank}",
             f"--nproc-per-node={run_info.gpus_per_node}",
@@ -450,7 +452,6 @@ def _detect_slurm_process_run_info(env: dict[str, str]) -> Optional[_ProcessRunI
     if nodes_str is None:
         return None
     logger.debug("Running in Slurm environment!")
-    print(f"[HPE] Detected SLURM_NODELIST: {nodes_str}")
     for env_var_name in _SLURM_ENV_VARS:
         if env.get(env_var_name, None) is None:
             raise ValueError(
