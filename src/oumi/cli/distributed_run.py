@@ -383,26 +383,34 @@ def _detect_polaris_process_run_info(env: dict[str, str]) -> Optional[_ProcessRu
 def expand_slurm_nodelist(nodelist: str) -> List[str]:
    
     expanded = []
-    
-    # Split by comma to handle multiple node groups
-    groups = nodelist.split(',')
-    
-    for group in groups:
-        group = group.strip()
-        
-        # Pattern: prefix[range] or prefix[list]
-        match = re.match(r'^([A-Za-z][A-Za-z0-9_-]*)\[([^\]]+)\]$', group)
-        
+
+    # Use regex to find all bracketed groups and handle them
+    pattern = r'([A-Za-z][A-Za-z0-9_-]*)\[([^\]]+)\]'
+    pos = 0
+    while pos < len(nodelist):
+        match = re.search(pattern, nodelist[pos:])
         if match:
             prefix = match.group(1).lower()
-            range_part = match.group(2)
-            
-            # Handle ranges and lists within brackets
-            expanded.extend(_expand_bracket_content(prefix, range_part))
+            content = match.group(2)
+            start_idx = pos + match.start()
+            end_idx = pos + match.end()
+            # Add any prefix before the match as a simple hostname
+            if start_idx > pos:
+                pre = nodelist[pos:start_idx].strip(',').strip()
+                if pre:
+                    expanded.extend([x.lower() for x in pre.split(',') if x])
+            expanded.extend(_expand_bracket_content(prefix, content))
+            pos = end_idx
+            # If next char is ',', skip it
+            if pos < len(nodelist) and nodelist[pos] == ',':
+                pos += 1
         else:
-            # Simple hostname without brackets
-            expanded.append(group.lower())
-    
+            # No more brackets, add the rest as simple hostnames
+            rest = nodelist[pos:].strip(',').strip()
+            if rest:
+                expanded.extend([x.lower() for x in rest.split(',') if x])
+            break
+
     return expanded
 
 def _expand_bracket_content(prefix: str, content: str) -> List[str]:
@@ -442,6 +450,7 @@ def _detect_slurm_process_run_info(env: dict[str, str]) -> Optional[_ProcessRunI
     if nodes_str is None:
         return None
     logger.debug("Running in Slurm environment!")
+    print(f"[HPE] Detected SLURM_NODELIST: {nodes_str}")
     for env_var_name in _SLURM_ENV_VARS:
         if env.get(env_var_name, None) is None:
             raise ValueError(
@@ -451,6 +460,7 @@ def _detect_slurm_process_run_info(env: dict[str, str]) -> Optional[_ProcessRunI
         raise ValueError("Empty value in the 'SLURM_NODELIST' environment variable!")
     #node_ips = _parse_nodes_str(nodes_str)
     node_ips = expand_slurm_nodelist(nodes_str)
+    logger.debug(f"node list from Slurm: {node_ips}")
     if len(node_ips) == 0:
         raise RuntimeError("Empty list of nodes in 'PBS_NODEFILE'!")
     gpus_per_node = 8  # Per Frontier spec.
@@ -556,4 +566,5 @@ def _get_positive_int_env_var(var_name: str, env: dict[str, str]) -> int:
 def _parse_nodes_str(nodes_str: str) -> list[str]:
     node_ips = [x.strip() for line in nodes_str.split("\n") for x in line.split(",")]
     node_ips = [x for x in node_ips if len(x) > 0]
+    logger.debug(f"detected node IPs: {node_ips}")
     return node_ips
