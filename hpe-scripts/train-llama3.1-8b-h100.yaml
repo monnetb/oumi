@@ -60,7 +60,7 @@ training:
   logging_steps: 20
   log_model_summary: False
   empty_device_cache_steps: 50
-  output_dir: "/lvol/scratch/oumi/output/llama70b.fft"
+  output_dir: "output/oumi/output/llama70b.fft"
   include_performance_metrics: True
   enable_wandb: True
 
