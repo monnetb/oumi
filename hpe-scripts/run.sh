@@ -58,8 +58,8 @@ set -x
 #export TORCHDYNAMO_CAPTURE_SCALAR_OUTPUTS=1
 
 export LOGLEVEL=DEBUG
-export TORCH_DISTRIBUTED_DEBUG=DETAIL 
-export TORCH_CPP_LOG_LEVEL=INFO
+#export TORCH_DISTRIBUTED_DEBUG=DETAIL 
+#export TORCH_CPP_LOG_LEVEL=INFO
 # Run the training command
 #oumi distributed torchrun --log-level DEBUG --nnodes=${OUMI_NUM_NODES} --master-addr=${OUMI_MASTER_ADDR} --master-port=${MASTER_PORT}  -m oumi train  -c $PWD/${YAML_FILE}
 srun --ntasks=2 --ntasks-per-node=1 --nodes=2 oumi distributed torchrun --log-level DEBUG -m oumi train  -c $PWD/${YAML_FILE}
