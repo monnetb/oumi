@@ -15,6 +15,7 @@ source ${OUMI_ROOT}/${TGT}/bin/activate
 
 pip install --upgrade  pip
 
-pip3 install oumi[gpu] vllm
+#pip3 install oumi[gpu] vllm
+pip3 install  -e /nfs/bruno/APPLICATIONS/LLM/oumi  #  ".[dev]"
 
 #pip3 install vllm
