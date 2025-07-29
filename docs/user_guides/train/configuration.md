@@ -70,6 +70,7 @@ model:
   model_max_length: null                             # Max sequence length (positive int or null)
   load_pretrained_weights: true                      # Load pretrained weights
   trust_remote_code: false                           # Allow remote code execution (use with trusted models only)
+  model_revision: null                               # Model revision to use (e.g., "prequantized")
 
   # Model precision and hardware
   torch_dtype_str: "float32"                         # Model precision (float32/float16/bfloat16/float64)
@@ -247,10 +248,8 @@ training:
 
     # vLLM settings for generation
     use_vllm: false                           # Use vLLM for generation
-    vllm_device: null                         # Device for vLLM (e.g., "cuda:1")
+    vllm_mode: null                           # Use server or colocate mode for vLLM
     vllm_gpu_memory_utilization: 0.9          # VRAM fraction for vLLM (0-1)
-    vllm_dtype: null                          # Data type for vLLM
-    vllm_max_model_len: null                  # Maximum model length for vLLM
 ```
 
 ### PEFT Configuration
