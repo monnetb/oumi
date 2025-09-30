@@ -1,17 +1,18 @@
 import subprocess
 import tempfile
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, call, patch
 
 import pytest
 
-from oumi.core.launcher import JobStatus
+from oumi.core.launcher import JobState, JobStatus
 from oumi.launcher.clients.slurm_client import SlurmClient
 
 _CTRL_PATH: str = "-S ~/.ssh/control-%h-%p-%r"
 _SACCT_CMD = (
     "sacct --user=user --format='JobId%-30,JobName%30,User%30,State%30,Reason%30' "
-    "-X --starttime 2025-01-01"
+    f"-X --starttime {(datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')}"
 )
 
 
@@ -87,7 +88,8 @@ def test_slurm_client_submit_job(mock_subprocess):
                 _run_commands_template(
                     [
                         "cd work_dir",
-                        "sbatch --nodes=2  --parsable ./job.sh",
+                        "sbatch --nodes=2 --output=$HOME/oumi_slurm_logs/%j.out "
+                        "--parsable ./job.sh",
                     ]
                 ),
                 shell=True,
@@ -125,7 +127,81 @@ def test_slurm_client_submit_job_name(mock_subprocess):
                 _run_commands_template(
                     [
                         "cd work_dir",
-                        "sbatch --nodes=2 --job-name=somename --parsable ./job.sh",
+                        "sbatch --nodes=2 --job-name=somename "
+                        "--output=$HOME/oumi_slurm_logs/%j.out --parsable "
+                        "./job.sh",
+                    ]
+                ),
+                shell=True,
+                capture_output=True,
+                timeout=180,
+            ),
+        ]
+    )
+    assert result == "2032"
+
+
+def test_slurm_client_submit_job_with_all_args(mock_subprocess):
+    mock_run = Mock()
+    mock_subprocess.run.return_value = mock_run
+    mock_run.stdout = b"2032"
+    mock_run.stderr = b"err"
+    mock_run.returncode = 0
+    client = SlurmClient("user", "host", "cluster_name")
+    result = client.submit_job(
+        "./job.sh",
+        "work_dir",
+        2,
+        name="somename",
+        export="NONE",
+        account="oumi",
+        ntasks=2,
+        threads_per_core=1,
+        distribution="block:cyclic",
+        partition="extended",
+        qos="debug",
+        stdout_file="~/stdout.txt",
+        stderr_file="$HOME/stderr.txt",
+        # kwargs
+        foo="bar",
+    )
+    mock_subprocess.run.assert_has_calls(
+        [
+            call(
+                "ssh -S ~/.ssh/control-%h-%p-%r -O check user@host",
+                shell=True,
+                capture_output=True,
+                timeout=10,
+            ),
+            call(
+                "ssh -S ~/.ssh/control-%h-%p-%r -O check user@host",
+                shell=True,
+                capture_output=True,
+                timeout=10,
+            ),
+            call(
+                _run_commands_template(
+                    [
+                        "cd work_dir",
+                        " ".join(
+                            [
+                                "sbatch",
+                                "--nodes=2",
+                                "--job-name=somename",
+                                "--export=NONE",
+                                "--account=oumi",
+                                "--ntasks=2",
+                                "--threads-per-core=1",
+                                "--distribution=block:cyclic",
+                                "--partition=extended",
+                                "--qos=debug",
+                                "--output=~/stdout.txt",
+                                "--error=$HOME/stderr.txt",
+                                "--foo=bar",
+                                "--parsable",
+                                "./job.sh",
+                            ]
+                        ),
                     ]
                 ),
                 shell=True,
@@ -172,7 +248,8 @@ def test_slurm_client_submit_job_error(mock_subprocess):
                 _run_commands_template(
                     [
                         "cd work_dir",
-                        "sbatch --nodes=2  --parsable ./job.sh",
+                        "sbatch --nodes=2 --output=$HOME/oumi_slurm_logs/%j.out "
+                        "--parsable ./job.sh",
                     ]
                 ),
                 shell=True,
@@ -209,7 +286,8 @@ def test_slurm_client_submit_job_retry_auth(mock_subprocess):
                 _run_commands_template(
                     [
                         "cd work_dir",
-                        "sbatch --nodes=2  --parsable ./job.sh",
+                        "sbatch --nodes=2 --output=$HOME/oumi_slurm_logs/%j.out "
+                        "--parsable ./job.sh",
                     ]
                 ),
                 shell=True,
@@ -373,6 +451,7 @@ def test_slurm_client_get_job_success(mock_subprocess):
             "                             6                           test                         taenin                      COMPLETED                           None"  # noqa: E501
         ),
         done=True,
+        state=JobState.SUCCEEDED,
     )
     assert job_status == expected_status
 
@@ -409,6 +488,7 @@ def test_slurm_client_get_job_success_one_job(mock_subprocess):
             "                             6                           test                         taenin                      COMPLETED                           None"  # noqa: E501
         ),
         done=True,
+        state=JobState.SUCCEEDED,
     )
     assert job_status == expected_status
 
@@ -529,6 +609,7 @@ def test_slurm_client_cancel_success(mock_subprocess):
             "                       7.batch                          batch                                                       RUNNING"  # noqa: E501
         ),
         done=False,
+        state=JobState.RUNNING,
     )
     assert job_status == expected_status
 

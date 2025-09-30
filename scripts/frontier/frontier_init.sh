@@ -8,7 +8,6 @@ cd "${SLURM_SUBMIT_DIR}"
 
 echo "Frontier job ID: ${SLURM_JOBID}"
 echo "Running on host: $(hostname)"
-# echo "Frontier queue: ${PBS_QUEUE}"
 echo "Current dir: $(pwd)"
 echo "Work dir: ${SLURM_SUBMIT_DIR}"
 echo "Frontier node file: ${SLURM_NODELIST}"
@@ -84,9 +83,7 @@ module load rocm/6.2.4
 module load craype-accel-amd-gfx90a
 
 # Activate the Oumi Conda environment.
-set +x
 source activate "/lustre/orion/lrn081/scratch/$USER/miniconda3/envs/oumi"
 echo "Conda path: ${CONDA_PREFIX}"
-set -x
 
 echo "frontier_init.sh is done!"

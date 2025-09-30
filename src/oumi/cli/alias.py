@@ -24,6 +24,8 @@ class AliasType(str, Enum):
     EVAL = "eval"
     INFER = "infer"
     JOB = "job"
+    QUANTIZE = "quantize"
+    JUDGE = "judge"
 
 
 _ALIASES: dict[str, dict[AliasType, str]] = {
@@ -144,6 +146,31 @@ _ALIASES: dict[str, dict[AliasType, str]] = {
     "llama-3-1-405b": {
         AliasType.INFER: "oumi://configs/apis/vertex/infer_llama_3_1_405b.yaml",
         AliasType.EVAL: "oumi://configs/apis/vertex/eval_llama_3_1_405b.yaml",
+    },
+    "molmo-7b-o": {
+        AliasType.TRAIN: "oumi://configs/recipes/vision/molmo/sft/molmo_o_full/train.yaml",
+    },
+    "molmo-7b-d": {
+        AliasType.TRAIN: "oumi://configs/recipes/vision/molmo/sft/molmo_d_full/train.yaml",
+    },
+    "molmo-7b-o-grpo": {
+        AliasType.TRAIN: "oumi://configs/recipes/vision/molmo/grpo/train.yaml",
+    },
+    # Judge aliases (for generic judges only)
+    "format-compliance": {
+        AliasType.JUDGE: "oumi://configs/projects/judges/generic/format_compliance.yaml",
+    },
+    "instruction-following": {
+        AliasType.JUDGE: "oumi://configs/projects/judges/generic/instruction_following.yaml",
+    },
+    "topic-adherence": {
+        AliasType.JUDGE: "oumi://configs/projects/judges/generic/topic_adherence.yaml",
+    },
+    "truthfulness": {
+        AliasType.JUDGE: "oumi://configs/projects/judges/generic/truthfulness.yaml",
+    },
+    "safety": {
+        AliasType.JUDGE: "oumi://configs/projects/judges/generic/safety.yaml",
     },
 }
 
