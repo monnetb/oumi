@@ -24,11 +24,13 @@ from oumi.core.configs.params.synthesis_params import (
     DocumentSource,
     ExampleSource,
     GeneralSynthesisParams,
-    PermutableAttribute,
-    PermutableAttributeValue,
+    SampledAttribute,
+    SampledAttributeValue,
     SegmentationStrategy,
 )
+from oumi.core.synthesis.dataset_ingestion import DatasetReader
 from oumi.core.synthesis.dataset_planner import DatasetPlanner
+from oumi.core.synthesis.document_ingestion import DocumentReader
 
 
 @pytest.fixture(autouse=True)
@@ -45,23 +47,35 @@ def planner():
 
 
 @pytest.fixture
+def mock_dataset_reader():
+    """Mock DatasetReader for testing."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_document_reader():
+    """Mock DocumentReader for testing."""
+    return Mock()
+
+
+@pytest.fixture
 def mock_permutable_attributes():
-    class MockPermutableAttribute1(PermutableAttribute):
+    class MockSampledAttribute1(SampledAttribute):
         def __init__(self):
             super().__init__(
                 id="attr1",
-                attribute="test1",
+                name="test1",
                 description="First test attribute",
                 possible_values=[
-                    PermutableAttributeValue(
+                    SampledAttributeValue(
                         id="value1",
-                        value="value1",
+                        name="value1",
                         description="First value",
                         sample_rate=0.5,
                     ),
-                    PermutableAttributeValue(
+                    SampledAttributeValue(
                         id="value2",
-                        value="value2",
+                        name="value2",
                         description="Second value",
                         sample_rate=0.5,
                     ),
@@ -71,22 +85,22 @@ def mock_permutable_attributes():
         def get_value_distribution(self):
             return {"value1": 0.5, "value2": 0.5}
 
-    class MockPermutableAttribute2(PermutableAttribute):
+    class MockSampledAttribute2(SampledAttribute):
         def __init__(self):
             super().__init__(
                 id="attr2",
-                attribute="test2",
+                name="test2",
                 description="Second test attribute",
                 possible_values=[
-                    PermutableAttributeValue(
+                    SampledAttributeValue(
                         id="valueA",
-                        value="valueA",
+                        name="valueA",
                         description="Value A",
                         sample_rate=0.5,
                     ),
-                    PermutableAttributeValue(
+                    SampledAttributeValue(
                         id="valueB",
-                        value="valueB",
+                        name="valueB",
                         description="Value B",
                         sample_rate=0.5,
                     ),
@@ -96,7 +110,7 @@ def mock_permutable_attributes():
         def get_value_distribution(self):
             return {"valueA": 0.5, "valueB": 0.5}
 
-    return [MockPermutableAttribute1(), MockPermutableAttribute2()]
+    return [MockSampledAttribute1(), MockSampledAttribute2()]
 
 
 @pytest.fixture
@@ -201,34 +215,47 @@ def mock_document_segments():
     ]
 
 
+def test_dataset_planner_default_initialization():
+    """Test that DatasetPlanner initializes with default readers when no args."""
+    planner = DatasetPlanner()
+
+    assert planner is not None
+
+    assert planner._document_reader is not None
+    assert planner._dataset_reader is not None
+
+    assert isinstance(planner._document_reader, DocumentReader)
+    assert isinstance(planner._dataset_reader, DatasetReader)
+
+
 def test_plan_with_no_permutable_attributes(planner):
-    params = GeneralSynthesisParams(permutable_attributes=None)
+    params = GeneralSynthesisParams(sampled_attributes=None)
     with pytest.raises(ValueError, match="Empty sample created after planning"):
         _ = planner.plan(params, sample_count=5)
 
 
 def test_plan_with_empty_permutable_attributes(planner, mock_permutable_attributes):
-    params = GeneralSynthesisParams(permutable_attributes=mock_permutable_attributes)
-    params.permutable_attributes = []
+    params = GeneralSynthesisParams(sampled_attributes=mock_permutable_attributes)
+    params.sampled_attributes = []
     with pytest.raises(ValueError, match="Empty sample created after planning"):
         _ = planner.plan(params, sample_count=5)
 
 
 def test_plan_with_zero_samples(planner, mock_permutable_attributes):
-    params = GeneralSynthesisParams(permutable_attributes=mock_permutable_attributes)
+    params = GeneralSynthesisParams(sampled_attributes=mock_permutable_attributes)
     with pytest.raises(ValueError, match="sample_count must be positive"):
         _ = planner.plan(params, sample_count=0)
 
 
 def test_plan_with_negative_samples(planner, mock_permutable_attributes):
-    params = GeneralSynthesisParams(permutable_attributes=mock_permutable_attributes)
+    params = GeneralSynthesisParams(sampled_attributes=mock_permutable_attributes)
     with pytest.raises(ValueError, match="sample_count must be positive"):
         planner.plan(params, sample_count=-1)
 
 
 def test_plan_with_valid_permutable_attributes(planner, mock_permutable_attributes):
     """Test that the distribution matches expected values with a fixed seed."""
-    params = GeneralSynthesisParams(permutable_attributes=mock_permutable_attributes)
+    params = GeneralSynthesisParams(sampled_attributes=mock_permutable_attributes)
     sample_count = 10
     result = planner.plan(params, sample_count=sample_count)
 
@@ -257,7 +284,7 @@ def test_plan_with_valid_combination_sampling(planner, mock_permutable_attribute
     """Test that combination sampling works with valid probabilities."""
     combination = {"attr1": "value1", "attr2": "valueA"}
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         combination_sampling=[
             AttributeCombination(combination=combination, sample_rate=0.8)
         ],
@@ -314,7 +341,7 @@ def test_plan_with_multiple_combinations(planner, mock_permutable_attributes):
         ),
     ]
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         combination_sampling=combinations,
     )
     sample_count = 100
@@ -343,7 +370,7 @@ def test_plan_resamples_on_combination_match(planner, mock_permutable_attributes
     # Set up a combination that would be very likely to occur randomly
     forbidden_combination = {"attr1": "value1", "attr2": "valueA"}
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         combination_sampling=[
             AttributeCombination(
                 combination=forbidden_combination,
@@ -368,7 +395,7 @@ def test_plan_resamples_on_combination_match(planner, mock_permutable_attributes
 def test_plan_with_no_dataset_sources(planner, mock_permutable_attributes):
     """Dataset plan should still be created if no dataset sources are provided."""
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_data=None,
     )
     result = planner.plan(params, sample_count=5)
@@ -384,7 +411,7 @@ def test_plan_with_no_dataset_sources(planner, mock_permutable_attributes):
 def test_plan_with_empty_dataset_sources(planner, mock_permutable_attributes):
     """Dataset plan should still be created if dataset sources are empty."""
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_data=None,  # Use None instead of [] to avoid validation error
     )
     result = planner.plan(params, sample_count=5)
@@ -402,7 +429,7 @@ def test_plan_with_example_sources(
 ):
     """Test that example sources are correctly included in the dataset plan."""
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_examples=mock_example_sources,
     )
     result = planner.plan(params, sample_count=5)
@@ -425,31 +452,28 @@ def test_plan_with_example_sources(
         assert len(sample) == 4
 
 
-@patch("oumi.core.synthesis.dataset_planner.DatasetReader")
 def test_plan_with_single_dataset_source(
-    mock_reader_class,
-    planner,
+    mock_dataset_reader,
     mock_permutable_attributes,
     mock_dataset_sources,
 ):
     """Dataset plan should be created with a single dataset source."""
-    mock_reader = Mock()
-    mock_reader.read.return_value = [
+    mock_dataset_reader.read.return_value = [
         {"col1": "value1", "col2": "valueA"},
         {"col1": "value2", "col2": "valueB"},
         {"col1": "value3", "col2": "valueC"},
     ]
-    mock_reader_class.return_value = mock_reader
+
+    planner = DatasetPlanner(dataset_reader=mock_dataset_reader)
 
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_data=[mock_dataset_sources[0]],
     )
     result = planner.plan(params, sample_count=5)
 
     # Verify DatasetReader was called correctly
-    mock_reader_class.assert_called_once()
-    mock_reader.read.assert_called_once_with(mock_dataset_sources[0])
+    mock_dataset_reader.read.assert_called_once_with(mock_dataset_sources[0])
 
     assert len(result) == 5
     # Each sample should have both dataset attributes and permutable attributes
@@ -469,28 +493,25 @@ def test_plan_with_single_dataset_source(
         assert len(sample) == 4
 
 
-@patch("oumi.core.synthesis.dataset_planner.DatasetReader")
 def test_plan_with_multiple_dataset_sources(
-    mock_reader_class,
-    planner,
+    mock_dataset_reader,
     mock_permutable_attributes,
     mock_dataset_sources,
     mock_dataset_data,
 ):
     """Dataset plan should be created with multiple dataset sources."""
-    mock_reader = Mock()
-    mock_reader.read.side_effect = mock_dataset_data
-    mock_reader_class.return_value = mock_reader
+    mock_dataset_reader.read.side_effect = mock_dataset_data
+
+    planner = DatasetPlanner(dataset_reader=mock_dataset_reader)
 
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_data=mock_dataset_sources,
     )
     result = planner.plan(params, sample_count=6)
 
     # Verify DatasetReader was called correctly
-    mock_reader_class.assert_called_once()
-    assert mock_reader.read.call_count == 2
+    assert mock_dataset_reader.read.call_count == 2
 
     assert len(result) == 6
     # Each sample should have attributes from both datasets and permutable attributes
@@ -517,27 +538,23 @@ def test_plan_with_multiple_dataset_sources(
         assert len(sample) == 6
 
 
-@patch("oumi.core.synthesis.dataset_planner.DatasetReader")
-def test_plan_with_dataset_sources_only(
-    mock_reader_class, planner, mock_dataset_sources
-):
+def test_plan_with_dataset_sources_only(mock_dataset_reader, mock_dataset_sources):
     """Dataset plan should be created with no permutable attributes."""
-    mock_reader = Mock()
-    mock_reader.read.return_value = [
+    mock_dataset_reader.read.return_value = [
         {"col1": "value1", "col2": "valueA"},
         {"col1": "value2", "col2": "valueB"},
     ]
-    mock_reader_class.return_value = mock_reader
+
+    planner = DatasetPlanner(dataset_reader=mock_dataset_reader)
 
     params = GeneralSynthesisParams(
-        permutable_attributes=None,
+        sampled_attributes=None,
         input_data=[mock_dataset_sources[0]],
     )
     result = planner.plan(params, sample_count=4)
 
     # Verify DatasetReader was called correctly
-    mock_reader_class.assert_called_once()
-    mock_reader.read.assert_called_once_with(mock_dataset_sources[0])
+    mock_dataset_reader.read.assert_called_once_with(mock_dataset_sources[0])
 
     assert len(result) == 4
     # Each sample should only have dataset attributes (round-robin)
@@ -556,7 +573,7 @@ def test_plan_with_dataset_sources_only(
 def test_plan_with_no_document_sources(planner, mock_permutable_attributes):
     """Dataset plan should still be created if no document sources are provided."""
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=None,
     )
     result = planner.plan(params, sample_count=5)
@@ -572,7 +589,7 @@ def test_plan_with_no_document_sources(planner, mock_permutable_attributes):
 def test_plan_with_empty_document_sources(planner, mock_permutable_attributes):
     """Dataset plan should still be created if document sources are empty."""
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=None,  # Use None instead of [] to avoid validation error
     )
     result = planner.plan(params, sample_count=5)
@@ -585,28 +602,26 @@ def test_plan_with_empty_document_sources(planner, mock_permutable_attributes):
         assert len(sample) == 2
 
 
-@patch("oumi.core.synthesis.dataset_planner.DocumentReader")
 def test_plan_with_single_document_source_no_segmentation(
-    mock_reader_class,
-    planner,
+    mock_document_reader,
     mock_permutable_attributes,
     mock_document_sources,
     mock_document_data,
 ):
     """Test plan with single document source without segmentation."""
-    mock_reader = Mock()
-    mock_reader.read.return_value = mock_document_data[:1]  # Only first document
-    mock_reader_class.return_value = mock_reader
+    # Only first document
+    mock_document_reader.read.return_value = mock_document_data[:1]
+
+    planner = DatasetPlanner(document_reader=mock_document_reader)
 
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=[mock_document_sources[0]],
     )
     result = planner.plan(params, sample_count=3)
 
     # Verify DocumentReader was called correctly
-    mock_reader_class.assert_called_once()
-    mock_reader.read.assert_called_once_with(mock_document_sources[0].path)
+    mock_document_reader.read.assert_called_once_with(mock_document_sources[0].path)
 
     assert len(result) == 3
     # Each sample should have both document attributes and permutable attributes
@@ -623,31 +638,28 @@ def test_plan_with_single_document_source_no_segmentation(
         assert len(sample) == 3
 
 
-@patch("oumi.core.synthesis.dataset_planner.DocumentReader")
 def test_plan_with_multiple_document_sources_no_segmentation(
-    mock_reader_class,
-    planner,
+    mock_document_reader,
     mock_permutable_attributes,
     mock_document_sources,
     mock_document_data,
 ):
     """Test plan with multiple document sources without segmentation."""
-    mock_reader = Mock()
-    mock_reader.read.side_effect = [
+    mock_document_reader.read.side_effect = [
         [mock_document_data[0]],  # Document 1
         [mock_document_data[1]],  # Document 2
     ]
-    mock_reader_class.return_value = mock_reader
+
+    planner = DatasetPlanner(document_reader=mock_document_reader)
 
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=mock_document_sources,
     )
     result = planner.plan(params, sample_count=4)
 
     # Verify DocumentReader was called correctly
-    mock_reader_class.assert_called_once()
-    assert mock_reader.read.call_count == 2
+    assert mock_document_reader.read.call_count == 2
 
     assert len(result) == 4
     # Each sample should have attributes from both documents and permutable attributes
@@ -668,35 +680,32 @@ def test_plan_with_multiple_document_sources_no_segmentation(
         assert len(sample) == 4
 
 
-@patch("oumi.core.synthesis.dataset_planner.DocumentReader")
 @patch("oumi.core.synthesis.dataset_planner.DocumentSegmenter")
 def test_plan_with_document_source_with_segmentation(
     mock_segmenter_class,
-    mock_reader_class,
-    planner,
+    mock_document_reader,
     mock_permutable_attributes,
     mock_document_sources_with_segmentation,
     mock_document_data,
     mock_document_segments,
 ):
     """Test plan with document source that has segmentation."""
-    mock_reader = Mock()
-    mock_reader.read.return_value = [mock_document_data[0]]
-    mock_reader_class.return_value = mock_reader
+    mock_document_reader.read.return_value = [mock_document_data[0]]
 
     mock_segmenter = Mock()
     mock_segmenter.segment.return_value = mock_document_segments[0]
     mock_segmenter_class.return_value = mock_segmenter
 
+    planner = DatasetPlanner(document_reader=mock_document_reader)
+
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=[mock_document_sources_with_segmentation[0]],
     )
     result = planner.plan(params, sample_count=4)
 
     # Verify DocumentReader was called correctly
-    mock_reader_class.assert_called_once()
-    mock_reader.read.assert_called_once_with(
+    mock_document_reader.read.assert_called_once_with(
         mock_document_sources_with_segmentation[0].path
     )
 
@@ -722,36 +731,33 @@ def test_plan_with_document_source_with_segmentation(
         assert len(sample) == 3
 
 
-@patch("oumi.core.synthesis.dataset_planner.DocumentReader")
 @patch("oumi.core.synthesis.dataset_planner.DocumentSegmenter")
 def test_plan_with_document_source_with_segmentation_keep_original(
     mock_segmenter_class,
-    mock_reader_class,
-    planner,
+    mock_document_reader,
     mock_permutable_attributes,
     mock_document_sources_with_segmentation,
     mock_document_data,
     mock_document_segments,
 ):
     """Test plan with document source that has segmentation and keeps original text."""
-    mock_reader = Mock()
-    mock_reader.read.return_value = [mock_document_data[0]]
-    mock_reader_class.return_value = mock_reader
+    mock_document_reader.read.return_value = [mock_document_data[0]]
 
     mock_segmenter = Mock()
     mock_segmenter.segment.return_value = mock_document_segments[0]
     mock_segmenter_class.return_value = mock_segmenter
 
+    planner = DatasetPlanner(document_reader=mock_document_reader)
+
     # Use the second document source which has keep_original_text=True
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=[mock_document_sources_with_segmentation[1]],
     )
     result = planner.plan(params, sample_count=4)
 
     # Verify DocumentReader was called correctly
-    mock_reader_class.assert_called_once()
-    mock_reader.read.assert_called_once_with(
+    mock_document_reader.read.assert_called_once_with(
         mock_document_sources_with_segmentation[1].path
     )
 
@@ -782,27 +788,25 @@ def test_plan_with_document_source_with_segmentation_keep_original(
         assert len(sample) == 4
 
 
-@patch("oumi.core.synthesis.dataset_planner.DocumentReader")
 @patch("oumi.core.synthesis.dataset_planner.DocumentSegmenter")
 def test_plan_with_mixed_document_sources(
     mock_segmenter_class,
-    mock_reader_class,
-    planner,
+    mock_document_reader,
     mock_permutable_attributes,
     mock_document_data,
     mock_document_segments,
 ):
     """Test plan with mix of segmented and non-segmented document sources."""
-    mock_reader = Mock()
-    mock_reader.read.side_effect = [
+    mock_document_reader.read.side_effect = [
         [mock_document_data[0]],  # Document 1 (non-segmented)
         [mock_document_data[1]],  # Document 2 (segmented)
     ]
-    mock_reader_class.return_value = mock_reader
 
     mock_segmenter = Mock()
     mock_segmenter.segment.return_value = mock_document_segments[1]
     mock_segmenter_class.return_value = mock_segmenter
+
+    planner = DatasetPlanner(document_reader=mock_document_reader)
 
     # Create mixed document sources
     mixed_sources = [
@@ -819,14 +823,13 @@ def test_plan_with_mixed_document_sources(
     ]
 
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=mixed_sources,
     )
     result = planner.plan(params, sample_count=6)
 
     # Verify DocumentReader was called correctly
-    mock_reader_class.assert_called_once()
-    assert mock_reader.read.call_count == 2
+    assert mock_document_reader.read.call_count == 2
 
     # Verify DocumentSegmenter was called correctly (only for the segmented document)
     mock_segmenter_class.assert_called_once_with(mixed_sources[1].segmentation_params)
@@ -852,27 +855,25 @@ def test_plan_with_mixed_document_sources(
         assert len(sample) == 4
 
 
-@patch("oumi.core.synthesis.dataset_planner.DocumentReader")
 def test_plan_with_document_sources_only(
-    mock_reader_class, planner, mock_document_sources, mock_document_data
+    mock_document_reader, mock_document_sources, mock_document_data
 ):
     """Test plan with only document sources and no permutable attributes."""
-    mock_reader = Mock()
-    mock_reader.read.side_effect = [
+    mock_document_reader.read.side_effect = [
         [mock_document_data[0]],  # Document 1
         [mock_document_data[1]],  # Document 2
     ]
-    mock_reader_class.return_value = mock_reader
+
+    planner = DatasetPlanner(document_reader=mock_document_reader)
 
     params = GeneralSynthesisParams(
-        permutable_attributes=None,
+        sampled_attributes=None,
         input_documents=mock_document_sources,
     )
     result = planner.plan(params, sample_count=3)
 
     # Verify DocumentReader was called correctly
-    mock_reader_class.assert_called_once()
-    assert mock_reader.read.call_count == 2
+    assert mock_document_reader.read.call_count == 2
 
     assert len(result) == 3
     # Each sample should only have document attributes
@@ -885,30 +886,27 @@ def test_plan_with_document_sources_only(
         assert len(sample) == 2
 
 
-@patch("oumi.core.synthesis.dataset_planner.DocumentReader")
 def test_plan_with_combined_sources_including_documents(
-    mock_reader_class,
-    planner,
+    mock_document_reader,
     mock_permutable_attributes,
     mock_document_sources,
     mock_document_data,
     mock_example_sources,
 ):
     """Test plan with combination of documents, examples, and permutable attributes."""
-    mock_reader = Mock()
-    mock_reader.read.return_value = [mock_document_data[0]]
-    mock_reader_class.return_value = mock_reader
+    mock_document_reader.read.return_value = [mock_document_data[0]]
+
+    planner = DatasetPlanner(document_reader=mock_document_reader)
 
     params = GeneralSynthesisParams(
-        permutable_attributes=mock_permutable_attributes,
+        sampled_attributes=mock_permutable_attributes,
         input_documents=[mock_document_sources[0]],
         input_examples=mock_example_sources,
     )
     result = planner.plan(params, sample_count=4)
 
     # Verify DocumentReader was called correctly
-    mock_reader_class.assert_called_once()
-    mock_reader.read.assert_called_once_with(mock_document_sources[0].path)
+    mock_document_reader.read.assert_called_once_with(mock_document_sources[0].path)
 
     assert len(result) == 4
     # Each sample should have attributes from all sources
