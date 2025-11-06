@@ -4,7 +4,7 @@
 set -eux 
 export OUMI_ROOT=${OUMI_ROOT:-$HOME/oumi}
 export OUMI_GPU=${OUMI_GPU:-NVIDIA}
-export TGT=oumi.venv.${OUMI_GPU}
+export TGT=oumi.venv.`uname -m`.${OUMI_GPU}
 
 mkdir -p ${OUMI_ROOT}
 cd ${OUMI_ROOT}
