@@ -185,3 +185,6 @@ cython_debug/
 # VS Code Workspace
 oumi.code-workspace
 slurm-*.out
+miniconda31*/*
+data/*
+Miniconda3-py3*
