@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import time
+import re
 from subprocess import Popen
 from sys import stderr, stdout
 from typing import Any, Final, NamedTuple, Optional
@@ -439,7 +440,7 @@ def _detect_slurm_process_run_info(env: dict[str, str]) -> Optional[_ProcessRunI
         node_rank=node_rank,
         world_info=_WorldInfo(num_nodes=len(node_ips), gpus_per_node=gpus_per_node),
         master_address=node_ips[0],
-        master_port=_DEFAULT_MASTER_PORT,
+        master_port=int(env.get(_MASTER_PORT_ENV, _DEFAULT_MASTER_PORT)),
         node_ips=node_ips,
     )
 
@@ -534,3 +535,33 @@ def _parse_nodes_str(nodes_str: str) -> list[str]:
     node_ips = [x.strip() for line in nodes_str.split("\n") for x in line.split(",")]
     node_ips = [x for x in node_ips if len(x) > 0]
     return node_ips
+
+def _expand_slurm_nodelist(nodelist: str) -> list[str]:
+    """
+    Expand a Slurm nodelist string like 'g100n[052-053,055-056]' into individual hostnames.
+
+    Examples:
+        'g100n[052-053,055-056]' -> ['g100n052', 'g100n053', 'g100n055', 'g100n056']
+        'nodeA' -> ['nodeA']  (returns unchanged if no bracket pattern)
+    """
+    if "[" not in nodelist or "]" not in nodelist:
+        return [nodelist]
+
+    match = re.fullmatch(r"([a-zA-Z0-9._-]+)\[(.+)\]", nodelist.strip())
+    if not match:
+        return [nodelist]
+
+    prefix, inner = match.groups()
+    nodes: list[str] = []
+    for part in inner.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            start, end = part.split("-", 1)
+            width = len(start)
+            for i in range(int(start), int(end) + 1):
+                nodes.append(f"{prefix}{i:0{width}d}")
+        else:
+            nodes.append(f"{prefix}{part}")
+    return nodes
