@@ -319,6 +319,7 @@ def test_analyzer_initialization_with_dataset(mock_load, mock_config, test_data_
     assert "analyzer_2" in analyzer.sample_analyzers
 
 
+@patch("oumi.core.analyze.dataset_analyzer.REGISTRY", MockRegistry())
 def test_dataset_source_direct_with_dataset_success():
     """Test that DatasetSource.DIRECT works when dataset is provided."""
 
@@ -827,6 +828,14 @@ def test_generate_analysis_summary(test_data_path, mock_config):
     for analyzer_name, metrics in message_summary.items():
         assert isinstance(metrics, dict)
         assert len(metrics) > 0
+        # Verify statistics structure for at least one metric
+        for metric_name, stats in metrics.items():
+            assert isinstance(stats, dict)
+            required_stats = ["count", "mean", "std", "min", "max", "median"]
+            for stat_name in required_stats:
+                assert stat_name in stats
+            break  # Only check first metric
+        break  # Only check first analyzer
 
     # Test conversation level summary - may be empty if no conversation-level metrics
     conversation_summary = summary["conversation_level_summary"]
@@ -902,7 +911,7 @@ def test_analyzer_with_tokenizer(test_data_path):
         split="train",
         sample_count=2,
         tokenizer_config={
-            "model_name": "gpt2"
+            "model_name": "openai-community/gpt2"
         },  # This will be used to build a real tokenizer
         analyzers=[
             SampleAnalyzerParams(

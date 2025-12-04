@@ -422,24 +422,22 @@ def _detect_slurm_process_run_info(env: dict[str, str]) -> Optional[_ProcessRunI
     if len(node_ips) == 0:
         raise RuntimeError("Empty list of nodes in 'SLURM_NODELIST'!")
     gpus_per_node = torch.cuda.device_count()
-    node_rank = _get_optional_int_env_var("SLURM_PROCID", env)
-    if node_rank is None:
-        node_rank = _get_optional_int_env_var("PMI_RANK", env)
 
+    node_rank = _get_optional_int_env_var("SLURM_NODEID", env)
     # If running on a single node, default to 0.
     if node_rank is None and len(node_ips) == 1:
         node_rank = 0
     if node_rank is None:
         raise ValueError(
             "Unable to determine node rank on a multi-node setup. "
-            "Neither 'SLURM_PROCID' nor 'PMI_RANK' is set "
+            "'SLURM_NODEID' is not set."
         )
 
     return _ProcessRunInfo(
         node_rank=node_rank,
         world_info=_WorldInfo(num_nodes=len(node_ips), gpus_per_node=gpus_per_node),
         master_address=node_ips[0],
-        master_port=_DEFAULT_MASTER_PORT,
+        master_port=int(env.get(_MASTER_PORT_ENV, _DEFAULT_MASTER_PORT)),
         node_ips=node_ips,
     )
 
@@ -464,7 +462,7 @@ def _detect_skypilot_process_run_info(env: dict[str, str]) -> Optional[_ProcessR
         node_rank=node_rank,
         world_info=_WorldInfo(num_nodes=len(node_ips), gpus_per_node=gpus_per_node),
         master_address=node_ips[0],
-        master_port=_DEFAULT_MASTER_PORT,
+        master_port=int(env.get(_MASTER_PORT_ENV, _DEFAULT_MASTER_PORT)),
         node_ips=node_ips,
     )
 
