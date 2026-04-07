@@ -29,6 +29,7 @@ VERSION=""
 EXTRAS=""
 PYTHON_VERSION=""
 CURRENT_ENV=false
+DEV=false
 
 # Detect GPU availability
 detect_gpu() {
@@ -79,6 +80,11 @@ while [ $# -gt 0 ]; do
             CURRENT_ENV=true
             shift
             ;;
+        --dev)
+            DEV=true
+            CURRENT_ENV=true
+            shift
+            ;;
         -h|--help)
             cat << 'EOF'
 Oumi Installation Script
@@ -90,6 +96,8 @@ Usage:
 Options:
   --gpu             Install with GPU support (default if GPU detected)
   --cpu             Install CPU-only version (skip GPU auto-detection)
+  --dev             Developer mode: editable install from local source with dev extras.
+                    Requires an active virtual environment and a local checkout.
   --version VER     Install a specific version (e.g., 0.6.0)
   --extras EXTRA    Install with additional extras (e.g., 'evaluation')
   --python VER      Use specific Python version (e.g., 3.12). uv will download if needed.
@@ -110,6 +118,10 @@ Examples:
   # Install in current virtual environment
   source .venv/bin/activate
   curl -LsSf https://oumi.ai/install.sh | bash -s -- --current-env
+
+  # Developer install from local checkout with GPU support
+  python -m venv .venv && source .venv/bin/activate
+  ./install.sh --gpu --dev
 EOF
             exit 0
             ;;
@@ -178,18 +190,30 @@ fi
 if command -v uv > /dev/null 2>&1; then
     UV_STATUS="yes"
 else
-    info "Installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-
-    # Add uv to PATH for this session
-    export PATH="$HOME/.local/bin:$PATH"
-
-    if command -v uv > /dev/null 2>&1; then
-        UV_STATUS="just installed"
+    # If in a virtual environment, install uv via pip into the venv
+    if [ -n "${VIRTUAL_ENV:-}" ]; then
+        info "Installing uv into virtual environment..."
+        pip install -q uv
+        if command -v uv > /dev/null 2>&1; then
+            UV_STATUS="just installed (venv)"
+        else
+            error "Failed to install uv via pip."
+            exit 1
+        fi
     else
-        error "Failed to install uv. Please install manually:"
-        echo "    curl -LsSf https://astral.sh/uv/install.sh | sh"
-        exit 1
+        info "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+
+        # Add uv to PATH for this session
+        export PATH="$HOME/.local/bin:$PATH"
+
+        if command -v uv > /dev/null 2>&1; then
+            UV_STATUS="just installed"
+        else
+            error "Failed to install uv. Please install manually:"
+            echo "    curl -LsSf https://astral.sh/uv/install.sh | sh"
+            exit 1
+        fi
     fi
 fi
 
@@ -240,7 +264,38 @@ if [ "$CURRENT_ENV" = true ]; then
         info "Installing oumi ($VARIANT) in virtual environment..."
     fi
     [ -n "$PYTHON_VERSION" ] && warn "Note: --python is ignored with --current-env (uses current environment's Python)"
-    INSTALL_CMD=(uv pip install "$PACKAGE" --prerelease=allow)
+
+    # On aarch64, PyPI's default torch wheel is CPU-only. Pre-install GPU-enabled
+    # torch and torchvision from PyTorch's CUDA index before installing oumi.
+    ARCH="$(uname -m)"
+    if [ "$VARIANT" = "GPU" ] && [ "$ARCH" = "aarch64" ]; then
+        info "Detected aarch64 with GPU - installing CUDA-enabled PyTorch wheels..."
+        uv pip install --prerelease=allow \
+            --index-url https://download.pytorch.org/whl/cu128 \
+            torch torchvision
+    fi
+
+    if [ "$DEV" = true ]; then
+        # Developer mode: editable install from local source
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        if [ ! -f "$SCRIPT_DIR/pyproject.toml" ]; then
+            error "pyproject.toml not found in $SCRIPT_DIR"
+            echo "    --dev requires running from a local oumi checkout."
+            exit 1
+        fi
+
+        # Build editable extras: always include dev, add gpu if requested
+        DEV_EXTRAS="dev"
+        [ "$GPU" = true ] && DEV_EXTRAS="gpu,$DEV_EXTRAS"
+        if [ -n "$EXTRAS" ]; then
+            DEV_EXTRAS="$DEV_EXTRAS,$EXTRAS"
+        fi
+
+        info "Developer install: editable from $SCRIPT_DIR with extras [$DEV_EXTRAS]"
+        INSTALL_CMD=(uv pip install --prerelease=allow -e "$SCRIPT_DIR[$DEV_EXTRAS]")
+    else
+        INSTALL_CMD=(uv pip install "$PACKAGE" --prerelease=allow)
+    fi
 else
     # Install as uv tool (default) - uv manages everything
     info "Installing oumi ($VARIANT) as uv tool..."

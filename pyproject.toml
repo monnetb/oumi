@@ -17,6 +17,28 @@ oumi = ["LICENSE", "README.md", "*.jinja"]
 prerelease = "allow"
 override-dependencies = ["transformers>=5.5,<5.6"]
 
+# PyTorch CUDA index for aarch64 (ARM64) builds.
+# On aarch64, the default PyPI torch wheel is CPU-only. The GPU-enabled wheels
+# are only available from PyTorch's own CUDA indexes. On x86_64, PyPI's default
+# torch wheel already includes CUDA support, so no extra index is needed.
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu128", marker = "platform_machine == 'aarch64'" },
+]
+torchvision = [
+    { index = "pytorch-cu128", marker = "platform_machine == 'aarch64'" },
+]
+
 [project]
 name = "oumi"
 dynamic = ["version"]
