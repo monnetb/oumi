@@ -8,26 +8,19 @@ Generative benchmarks are vital to evaluate conversational agents, as well as ta
 
 That said, generative evaluations are significantly more challenging than closed-form evaluations, due to lack of a clear "correct" answer. This makes the evaluation criteria subjective to human judgment. But, even for an established set of criteria, aligning across raters ultimately depends on human perception, making consistent evaluations a very hard problem. Alternatively, fully-automating the rating process, by leveraging LLMs as judges of responses is recently getting more traction. LLM-as-a-judge platforms are significantly more cost- and time-effective, while they can provide reproducible and consistent results (under certain conditions).
 
-This section discusses the LLM-as-a-judge platforms that Oumi is using as its backend to provide reliable insights on generative model performance. The evaluation process consists of 2 steps: inference and judgement. Inference generates model responses for a predefined set of open-ended prompts, while judgement leverages an LLM to judge the quality of these responses. Oumi enables generative evaluation by integrating with popular platforms (AlpacaEval and MT-Bench), as well as offering a flexible framework (see {doc}`/user_guides/judge/judge`) for users to develop their own generative evaluations.
+This section discusses the LLM-as-a-judge platforms that Oumi OSS is using as its backend to provide reliable insights on generative model performance. The evaluation process consists of 2 steps: inference and judgement. Inference generates model responses for a predefined set of open-ended prompts, while judgement leverages an LLM to judge the quality of these responses. Oumi OSS enables generative evaluation by integrating with popular platforms (AlpacaEval and MT-Bench), as well as offering a flexible framework (see {doc}`/user_guides/judge/judge`) for users to develop their own generative evaluations.
 
-All evaluations in Oumi are automatically logged and versioned, capturing model configurations, evaluation parameters, and environmental details to ensure reproducible results.
+All evaluations in Oumi OSS are automatically logged and versioned, capturing model configurations, evaluation parameters, and environmental details to ensure reproducible results.
 
 ## Supported Out-of-the-box Benchmarks
 
 ### AlpacaEval (1.0 and 2.0)
 
-[AlpacaEval](https://github.com/tatsu-lab/alpaca_eval) is a framework for automatically evaluating the instruction-following capabilities of language models, as well as whether their responses are helpful, accurate, and relevant. The framework prioritizes human-aligned evaluation, aiming to assess whether the model’s response meets the expectations of human evaluators. The instruction set consists of 805 open-ended questions, such as "How did US states get their names?".
+[AlpacaEval](https://github.com/tatsu-lab/alpaca_eval) is a framework for automatically evaluating the instruction-following capabilities of language models, as well as whether their responses are helpful, accurate, and relevant. The framework prioritizes human-aligned evaluation, aiming to assess whether the model's response meets the expectations of human evaluators. The instruction set consists of 805 open-ended questions, such as "How did US states get their names?".
 
 The latest update (2.0) uses GPT-4 Turbo as a judge, comparing the model outputs against a set of reference responses, and calculating standardized win-rates against these responses. AlpacaEval 2.0 has been widely adopted as a benchmark in research papers and it is particularly useful for evaluating instruction-tuned models, comparing performance against established baselines (see [leaderboard](https://tatsu-lab.github.io/alpaca_eval/)), and conducting automated evaluations at scale.
 
-To use AlpacaEval, you can run the following command:
-
-```bash
-OPENAI_API_KEY="your_key"
-oumi evaluate -c configs/recipes/smollm/evaluation/135m/quickstart_alpaca_v2_eval.yaml
-```
-
-If you prefer to use AlpacaEval outside Oumi, we refer you to our example notebook {gh}`notebooks/Oumi - Evaluation with AlpacaEval 2.0.ipynb`.
+To use AlpacaEval, see our example notebook {gh}`notebooks/Oumi - Evaluation with AlpacaEval 2.0.ipynb`.
 
 **Resources:**
 - [AlpacaEval V1.0 Paper](https://arxiv.org/abs/2305.14387)
@@ -64,7 +57,7 @@ HumanEval is a benchmark designed to evaluate language models' capabilities in g
 
 ## LLM-as-a-judge
 
-While the out-of-the-box benchmarks provided by Oumi cover a broad spectrum of generative use cases, we understand that many specialized applications require more tailored evaluation objectives. If the existing benchmarks do not fully meet your needs, Oumi offers a flexible and streamlined process to create and automate evaluations, by leveraging an {doc}`LLM Judge </user_guides/judge/judge>`.
+While the out-of-the-box benchmarks provided by Oumi OSS cover a broad spectrum of generative use cases, we understand that many specialized applications require more tailored evaluation objectives. If the existing benchmarks do not fully meet your needs, Oumi OSS offers a flexible and streamlined process to create and automate evaluations, by leveraging an {doc}`LLM Judge </user_guides/judge/judge>`.
 
 You can author your own set of evaluation prompts and customize the metrics to align with your specific domain or use case. By leveraging an LLM to assess your model's outputs, you can fully automate the evaluation pipeline, producing insightful scores that truly reflect your unique criteria.
 

@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 import pytest
 import torch
 import torch.utils.data.datapipes as dp
@@ -19,6 +17,10 @@ from oumi.core.configs import (
 from oumi.core.datasets import BaseIterableDataset, BaseMapDataset
 from oumi.core.registry import register_dataset
 from oumi.core.tokenizers import BaseTokenizer
+from tests.markers import requires_torchdata
+from tests.unit.conftest import create_mock_tokenizer
+
+pytestmark = requires_torchdata()
 
 
 #
@@ -75,13 +77,13 @@ class CustomProxyIterableDataset(BaseIterableDataset):
     def __init__(
         self,
         *,
-        dataset_name: Optional[str],
-        dataset_path: Optional[str] = None,
-        subset: Optional[str] = None,
-        split: Optional[str] = None,
+        dataset_name: str | None,
+        dataset_path: str | None = None,
+        subset: str | None = None,
+        split: str | None = None,
         trust_remote_code: bool = False,
-        transform_num_workers: Optional[Union[str, int]] = None,
-        tokenizer: Optional[BaseTokenizer] = None,
+        transform_num_workers: str | int | None = None,
+        tokenizer: BaseTokenizer | None = None,
         **kwargs,
     ):
         if dataset_name is None:
@@ -113,9 +115,9 @@ class CustomProxyIterableDataset(BaseIterableDataset):
         return self._inner_dataset.transform(x)
 
 
-class SimpleTokenizer(BaseTokenizer):
-    def __call__(self, text, **kwargs):
-        return {"input_ids": torch.tensor([ord(c) for c in text])}
+def _simple_tokenize(text, **kwargs):
+    """Simple tokenization that converts characters to their ordinal values."""
+    return {"input_ids": torch.tensor([ord(c) for c in text])}
 
 
 def create_hf_dataset(size=10):
@@ -144,8 +146,8 @@ def mock_hf_hub_reader(dataset, name, split, streaming):
 
 
 @pytest.fixture
-def tokenizer() -> BaseTokenizer:
-    return SimpleTokenizer()
+def tokenizer():
+    return create_mock_tokenizer(tokenize_func=_simple_tokenize)
 
 
 @pytest.fixture
@@ -191,10 +193,26 @@ def test_load_custom_proxy_iterable_dataset_using_name_override(tokenizer):
 
 
 def test_load_dataset_huggingface(tokenizer, monkeypatch):
+    def mock_get_torchdata_imports():
+        from torchdata.datapipes.iter import (  # pyright: ignore[reportMissingImports]
+            MultiplexerLongest,
+            SampleMultiplexer,
+        )
+        from torchdata.datapipes.map.util.converter import (  # pyright: ignore[reportMissingImports]
+            MapToIterConverterIterDataPipe,
+        )
+
+        return (
+            mock_hf_hub_reader,  # HuggingFaceHubReader
+            MultiplexerLongest,
+            SampleMultiplexer,
+            MapToIterConverterIterDataPipe,
+        )
+
     monkeypatch.setattr(
         oumi.builders.oumi_data,
-        "HuggingFaceHubReader",
-        mock_hf_hub_reader,
+        "_get_torchdata_imports",
+        mock_get_torchdata_imports,
     )
 
     dataset_params = create_dataset_params("huggingface_dataset")

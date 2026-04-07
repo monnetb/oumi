@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 from PIL import Image
 from typing_extensions import override
@@ -30,6 +30,7 @@ from oumi.core.datasets.base_dpo_dataset import BaseDpoDataset
 from oumi.core.tokenizers.base_tokenizer import BaseTokenizer
 from oumi.core.types.conversation import ContentItem, Role, Type
 from oumi.utils.conversation_utils import load_pil_image_from_content_item
+from oumi.utils.packaging import is_trl_v0_29_or_later
 
 _PROMPT_KEY = "prompt"
 _CHOSEN_KEY = "chosen"
@@ -66,16 +67,16 @@ class VisionLanguageDpoDataset(BaseDpoDataset):
     def __init__(
         self,
         *,
-        dataset_name: Optional[str] = None,
-        dataset_path: Optional[str] = None,
-        split: Optional[str] = None,
-        tokenizer: Optional[BaseTokenizer] = None,
+        dataset_name: str | None = None,
+        dataset_path: str | None = None,
+        split: str | None = None,
+        tokenizer: BaseTokenizer | None = None,
         return_tensors: bool = False,
-        processor: Optional[Any] = None,
-        processor_name: Optional[str] = None,
+        processor: Any | None = None,
+        processor_name: str | None = None,
         trust_remote_code: bool = False,
-        processor_kwargs: Optional[dict[str, Any]] = None,
-        max_size: Optional[int] = None,
+        processor_kwargs: dict[str, Any] | None = None,
+        max_size: int | None = None,
         prompt_key: str = _PROMPT_KEY,
         chosen_key: str = _CHOSEN_KEY,
         rejected_key: str = _REJECTED_KEY,
@@ -183,7 +184,7 @@ class VisionLanguageDpoDataset(BaseDpoDataset):
             _IMAGES_KEY: images,
         }
 
-    def _load_image(self, image_path: Union[str, ContentItem, dict]) -> Image.Image:
+    def _load_image(self, image_path: str | ContentItem | dict) -> Image.Image:
         """Load images from the given paths."""
         if isinstance(image_path, str):
             content_type = (
@@ -274,11 +275,20 @@ class VisionLanguageDpoDataset(BaseDpoDataset):
         chosen_input_ids = chosen_input_ids + [self._tokenizer.eos_token_id]
         rejected_input_ids = rejected_input_ids + [self._tokenizer.eos_token_id]
 
-        output = {
-            "prompt_input_ids": prompt_input_ids,
-            "chosen_input_ids": chosen_input_ids,
-            "rejected_input_ids": rejected_input_ids,
-        }
+        # TRL v0.29+ uses shorter column names (prompt_ids, chosen_ids, rejected_ids)
+        # Earlier versions use prompt_input_ids, chosen_input_ids, rejected_input_ids
+        if is_trl_v0_29_or_later():
+            output = {
+                "prompt_ids": prompt_input_ids,
+                "chosen_ids": chosen_input_ids,
+                "rejected_ids": rejected_input_ids,
+            }
+        else:
+            output = {
+                "prompt_input_ids": prompt_input_ids,
+                "chosen_input_ids": chosen_input_ids,
+                "rejected_input_ids": rejected_input_ids,
+            }
 
         # Drop the first dimension of the features if needed.
         if "pixel_values" in processed_features:

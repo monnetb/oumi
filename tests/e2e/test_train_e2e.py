@@ -5,7 +5,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple
 
 import pytest
 import yaml
@@ -13,6 +13,7 @@ import yaml
 from oumi.core.configs import TrainingConfig
 from oumi.core.configs.params.training_params import TrainerType
 from oumi.utils.io_utils import load_json
+from oumi.utils.packaging import is_transformers_v5
 from oumi.utils.torch_utils import device_cleanup
 from tests import get_configs_dir
 from tests.e2e import get_e2e_test_output_dir, is_file_not_empty
@@ -27,15 +28,15 @@ class TrainTestConfig(NamedTuple):
     skip: bool = False
     interactive_logs: bool = True
 
-    trainer_type: Optional[TrainerType] = None
-    model_max_length: Optional[int] = None
-    batch_size: Optional[int] = None
-    gradient_accumulation_steps: Optional[int] = None
-    dataloader_num_workers: Optional[int] = None
-    dataloader_prefetch_factor: Optional[int] = None
-    save_steps: Optional[int] = None
-    save_final_model: Optional[bool] = None
-    enable_wandb: Optional[bool] = False  # Disable `wandb`` by default
+    trainer_type: TrainerType | None = None
+    model_max_length: int | None = None
+    batch_size: int | None = None
+    gradient_accumulation_steps: int | None = None
+    dataloader_num_workers: int | None = None
+    dataloader_prefetch_factor: int | None = None
+    save_steps: int | None = None
+    save_final_model: bool | None = None
+    enable_wandb: bool | None = False  # Disable `wandb`` by default
 
 
 def _check_checkpoint_dir(
@@ -43,13 +44,21 @@ def _check_checkpoint_dir(
 ):
     """Helper to verify model directory structure."""
     # Check essential model files
-    essential_files = [
-        "special_tokens_map.json",
-        "tokenizer_config.json",
-        "tokenizer.json",
-        "trainer_state.json",
-        "training_args.bin",
-    ]
+    if is_transformers_v5():
+        essential_files = [
+            "tokenizer_config.json",
+            "tokenizer.json",
+            "trainer_state.json",
+            "training_args.bin",
+        ]
+    else:
+        essential_files = [
+            "special_tokens_map.json",
+            "tokenizer_config.json",
+            "tokenizer.json",
+            "trainer_state.json",
+            "training_args.bin",
+        ]
     if is_lora:
         essential_files = ["adapter_config.json"] + essential_files  # OPE-938
     else:
@@ -106,10 +115,11 @@ def _check_checkpoint_dir(
         gen_config = load_json(dir_path / "generation_config.json")
         assert isinstance(gen_config, dict), "Invalid generation config"
 
-    # Verify special tokens map
-    with open(dir_path / "special_tokens_map.json") as f:
-        tokens_map = json.load(f)
-        assert isinstance(tokens_map, dict), "Invalid special tokens map"
+    # Verify special tokens map (not generated in transformers v5)
+    if not is_transformers_v5():
+        with open(dir_path / "special_tokens_map.json") as f:
+            tokens_map = json.load(f)
+            assert isinstance(tokens_map, dict), "Invalid special tokens map"
 
     # Verify tokenizer config
     with open(dir_path / "tokenizer_config.json") as f:

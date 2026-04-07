@@ -15,9 +15,11 @@
 import os
 import sys
 import traceback
+from typing import Any
 
 import typer
 
+from oumi.cli.alias import AliasType
 from oumi.cli.analyze import analyze
 from oumi.cli.cache import card as cache_card
 from oumi.cli.cache import get as cache_get
@@ -27,7 +29,22 @@ from oumi.cli.cli_utils import (
     CONSOLE,
     CONTEXT_ALLOW_EXTRA_ARGS,
     create_github_issue_url,
+    get_command_help,
 )
+from oumi.cli.deploy import (
+    create_endpoint,
+    delete,
+    delete_model,
+    list_deployments,
+    list_hardware,
+    list_models,
+    test,
+    upload,
+)
+from oumi.cli.deploy import start as deploy_start
+from oumi.cli.deploy import status as deploy_status
+from oumi.cli.deploy import stop as deploy_stop
+from oumi.cli.deploy import up as deploy_up
 from oumi.cli.distributed_run import accelerate, torchrun
 from oumi.cli.env import env
 from oumi.cli.evaluate import evaluate
@@ -51,6 +68,20 @@ _ASCII_LOGO = r"""
   \____/ \____/|_|  |_|_____|
 """
 
+_APP_HELP = """\
+Examples:
+
+• oumi train -c llama3.1-8b
+• oumi infer -c llama3.1-8b --interactive
+• oumi train -c config.yaml --training.max_steps 100
+"""
+
+_TIPS_FOOTER = """
+[bold]Tips:[/bold]
+  • List available model configs: [cyan]oumi train --list[/cyan]
+  • Enable shell completion: [cyan]oumi --install-completion[/cyan]
+"""
+
 
 def experimental_features_enabled():
     """Check if experimental features are enabled."""
@@ -58,7 +89,12 @@ def experimental_features_enabled():
     return is_enabled.lower() in ("1", "true", "yes", "on")
 
 
-def _oumi_welcome(ctx: typer.Context):
+def _oumi_welcome(
+    ctx: typer.Context,
+    help_flag: bool = typer.Option(
+        False, "--help", "-h", is_eager=True, help="Show this message and exit."
+    ),
+):
     if ctx.invoked_subcommand == "distributed":
         return
     # Skip logo for rank>0 for multi-GPU jobs to reduce noise in logs.
@@ -66,80 +102,142 @@ def _oumi_welcome(ctx: typer.Context):
         return
     CONSOLE.print(_ASCII_LOGO, style="green", highlight=False)
 
+    # Show help when no subcommand is provided or help is requested
+    if help_flag or ctx.invoked_subcommand is None:
+        CONSOLE.print(ctx.get_help(), end="")
+        CONSOLE.print(_TIPS_FOOTER)
+        raise typer.Exit
+
+
+_HELP_OPTION_NAMES = {"help_option_names": ["--help", "-h"]}
+
 
 def get_app() -> typer.Typer:
     """Create the Typer CLI app."""
-    app = typer.Typer(pretty_exceptions_enable=False)
-    app.callback(context_settings={"help_option_names": ["-h", "--help"]})(
-        _oumi_welcome
+    app = typer.Typer(
+        pretty_exceptions_enable=False,
+        rich_markup_mode="rich",
+        context_settings=_HELP_OPTION_NAMES,
+        add_completion=True,
     )
+    app.callback(invoke_without_command=True, help=_APP_HELP)(_oumi_welcome)
 
     # Model
     app.command(
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Run benchmarks and evaluations on a model.",
+        help=get_command_help(
+            "Run benchmarks and evaluations on a model.", AliasType.EVAL
+        ),
         rich_help_panel="Model",
     )(evaluate)
     app.command(  # Alias for evaluate
         name="eval",
         hidden=True,
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Run benchmarks and evaluations on a model.",
+        help=get_command_help(
+            "Run benchmarks and evaluations on a model.", AliasType.EVAL
+        ),
     )(evaluate)
     app.command(
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Generate text or predictions using a model.",
+        help=get_command_help(
+            "Generate text or predictions using a model.", AliasType.INFER
+        ),
         rich_help_panel="Model",
     )(infer)
     app.command(
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Fine-tune or pre-train a model.",
+        help=get_command_help("Fine-tune or pre-train a model.", AliasType.TRAIN),
         rich_help_panel="Model",
     )(train)
     app.command(
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Search for optimal hyperparameters.",
+        help=get_command_help("Search for optimal hyperparameters.", AliasType.TUNE),
         rich_help_panel="Model",
     )(tune)
     app.command(
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Compress a model to reduce size and speed up inference.",
+        help=get_command_help(
+            "Compress a model to reduce size and speed up inference.",
+            AliasType.QUANTIZE,
+        ),
         rich_help_panel="Model",
     )(quantize)
 
     # Data
     app.command(
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Compute statistics and metrics for a dataset.",
+        help=get_command_help(
+            "Compute statistics and metrics for a dataset.", AliasType.ANALYZE
+        ),
         rich_help_panel="Data",
     )(analyze)
     app.command(
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Generate synthetic training & evaluation data.",
+        help=get_command_help(
+            "Generate synthetic training & evaluation data.", AliasType.SYNTH
+        ),
         rich_help_panel="Data",
     )(synth)
     app.command(  # Alias for synth
         name="synthesize",
         hidden=True,
         context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
-        help="Generate synthetic training data.",
+        help=get_command_help(
+            "Generate synthetic training & evaluation data.", AliasType.SYNTH
+        ),
     )(synth)
-    judge_app = typer.Typer(pretty_exceptions_enable=False)
-    judge_app.command(name="dataset", context_settings=CONTEXT_ALLOW_EXTRA_ARGS)(
-        judge_dataset_file
+    judge_app = typer.Typer(
+        pretty_exceptions_enable=False, context_settings=_HELP_OPTION_NAMES
     )
-    judge_app.command(name="conversations", context_settings=CONTEXT_ALLOW_EXTRA_ARGS)(
-        judge_conversations_file
+
+    # Create callback for --list on top-level judge command
+    from oumi.cli.cli_utils import create_list_configs_callback
+
+    _judge_list_callback = create_list_configs_callback(
+        AliasType.JUDGE, "Available Judge Configs", "judge dataset"
     )
+
+    _judge_help = get_command_help(
+        "Score and evaluate outputs using an LLM judge.", AliasType.JUDGE
+    )
+
+    @judge_app.callback(invoke_without_command=True, help=_judge_help)
+    def judge_callback(
+        ctx: typer.Context,
+        list_configs: bool = typer.Option(
+            False,
+            "--list",
+            help="List all available judge configs.",
+            callback=_judge_list_callback,
+            is_eager=True,
+        ),
+    ):
+        if ctx.invoked_subcommand is None and not list_configs:
+            # Show help if no subcommand provided
+            CONSOLE.print(ctx.get_help())
+            raise typer.Exit(0)
+
+    judge_app.command(
+        name="dataset",
+        context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
+        help=get_command_help("Judge a dataset.", AliasType.JUDGE),
+    )(judge_dataset_file)
+    judge_app.command(
+        name="conversations",
+        context_settings=CONTEXT_ALLOW_EXTRA_ARGS,
+        help=get_command_help("Judge conversations.", AliasType.JUDGE),
+    )(judge_conversations_file)
     app.add_typer(
         judge_app,
         name="judge",
-        help="Score and evaluate outputs using an LLM judge.",
         rich_help_panel="Data",
     )
 
     # Compute
-    launch_app = typer.Typer(pretty_exceptions_enable=False)
+    launch_app = typer.Typer(
+        pretty_exceptions_enable=False, context_settings=_HELP_OPTION_NAMES
+    )
     launch_app.command(help="Cancel a running job.")(cancel)
     launch_app.command(help="Tear down a cluster and release resources.")(down)
     launch_app.command(
@@ -158,7 +256,32 @@ def get_app() -> typer.Typer:
         help="Deploy and manage jobs on cloud infrastructure.",
         rich_help_panel="Compute",
     )
-    distributed_app = typer.Typer(pretty_exceptions_enable=False)
+    deploy_app = typer.Typer(
+        pretty_exceptions_enable=False, context_settings=_HELP_OPTION_NAMES
+    )
+    deploy_app.command(help="Upload a model to an inference provider")(upload)
+    deploy_app.command(help="Create an inference endpoint")(create_endpoint)
+    deploy_app.command(name="list", help="List all deployments")(list_deployments)
+    deploy_app.command(name="list-models", help="List uploaded models")(list_models)
+    deploy_app.command(name="status", help="Get deployment status")(deploy_status)
+    deploy_app.command(name="start", help="Start a stopped endpoint")(deploy_start)
+    deploy_app.command(name="stop", help="Stop an endpoint to save cost")(deploy_stop)
+    deploy_app.command(help="Delete an endpoint")(delete)
+    deploy_app.command(name="delete-model", help="Delete an uploaded model")(
+        delete_model
+    )
+    deploy_app.command(help="List available hardware options")(list_hardware)
+    deploy_app.command(help="Test endpoint with a sample request")(test)
+    deploy_app.command(help="Deploy model end-to-end (upload + endpoint)")(deploy_up)
+    app.add_typer(
+        deploy_app,
+        name="deploy",
+        help="Deploy models to inference providers.",
+        rich_help_panel="Compute",
+    )
+    distributed_app = typer.Typer(
+        pretty_exceptions_enable=False, context_settings=_HELP_OPTION_NAMES
+    )
     distributed_app.command(context_settings=CONTEXT_ALLOW_EXTRA_ARGS)(accelerate)
     distributed_app.command(context_settings=CONTEXT_ALLOW_EXTRA_ARGS)(torchrun)
     app.add_typer(
@@ -181,7 +304,9 @@ def get_app() -> typer.Typer:
         help="Download example configs from the Oumi repository.",
         rich_help_panel="Tools",
     )(fetch)
-    cache_app = typer.Typer(pretty_exceptions_enable=False)
+    cache_app = typer.Typer(
+        pretty_exceptions_enable=False, context_settings=_HELP_OPTION_NAMES
+    )
     cache_app.command(name="ls", help="List cached models and datasets.")(cache_ls)
     cache_app.command(
         name="get", help="Download a model or dataset from Hugging Face."
@@ -198,11 +323,48 @@ def get_app() -> typer.Typer:
     return app
 
 
+def _get_cli_event() -> tuple[str, dict[str, Any]]:
+    """Extract the CLI command and context from sys.argv."""
+    args = sys.argv[1:]
+    help_requested = "--help" in args or "-h" in args
+
+    # Extract positional arguments that appear before any flag.
+    # This correctly handles the common CLI patterns where commands/subcommands
+    # come first, followed by flags and their values.
+    positional_args = []
+    for arg in args:
+        if arg.startswith("-"):
+            break
+        positional_args.append(arg)
+        if len(positional_args) >= 2:
+            break
+
+    command = positional_args[0] if positional_args else None
+    subcommand = positional_args[1] if len(positional_args) > 1 else None
+
+    event_name = f"cli-{command}" if command else "cli"
+    properties: dict[str, Any] = {
+        "subcommand": subcommand,
+        "help": help_requested,
+    }
+
+    return event_name, properties
+
+
 def run():
     """The entrypoint for the CLI."""
     app = get_app()
+
     try:
-        return app()
+        event_name, event_properties = _get_cli_event()
+        if event_properties.get("help"):
+            return app()
+        else:
+            from oumi.telemetry import TelemetryManager
+
+            telemetry = TelemetryManager.get_instance()
+            with telemetry.capture_operation(event_name, event_properties):
+                return app()
     except Exception as e:
         tb_str = traceback.format_exc()
         CONSOLE.print(tb_str)

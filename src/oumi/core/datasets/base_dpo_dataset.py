@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union, cast
+from typing import cast
 
 import numpy as np
 from typing_extensions import override
@@ -20,6 +20,7 @@ from typing_extensions import override
 from oumi.core.datasets.base_map_dataset import BaseMapDataset
 from oumi.core.tokenizers.base_tokenizer import BaseTokenizer
 from oumi.core.types.conversation import Role
+from oumi.utils.packaging import is_trl_v0_29_or_later
 
 _PROMPT_KEY = "prompt"
 _CHOSEN_KEY = "chosen"
@@ -36,10 +37,10 @@ class BaseDpoDataset(BaseMapDataset):
     def __init__(
         self,
         *,
-        dataset_name: Optional[str] = None,
-        dataset_path: Optional[str] = None,
-        split: Optional[str] = None,
-        tokenizer: Optional[BaseTokenizer] = None,
+        dataset_name: str | None = None,
+        dataset_path: str | None = None,
+        split: str | None = None,
+        tokenizer: BaseTokenizer | None = None,
         return_tensors: bool = False,
         **kwargs,
     ) -> None:
@@ -141,11 +142,20 @@ class BaseDpoDataset(BaseMapDataset):
         chosen_input_ids = chosen_input_ids + [self._tokenizer.eos_token_id]
         rejected_input_ids = rejected_input_ids + [self._tokenizer.eos_token_id]
 
-        return {
-            "prompt_input_ids": prompt_input_ids,
-            "chosen_input_ids": chosen_input_ids,
-            "rejected_input_ids": rejected_input_ids,
-        }
+        # TRL v0.29+ uses shorter column names (prompt_ids, chosen_ids, rejected_ids)
+        # Earlier versions use prompt_input_ids, chosen_input_ids, rejected_input_ids
+        if is_trl_v0_29_or_later():
+            return {
+                "prompt_ids": prompt_input_ids,
+                "chosen_ids": chosen_input_ids,
+                "rejected_ids": rejected_input_ids,
+            }
+        else:
+            return {
+                "prompt_input_ids": prompt_input_ids,
+                "chosen_input_ids": chosen_input_ids,
+                "rejected_input_ids": rejected_input_ids,
+            }
 
     @override
     def transform(self, sample: dict) -> dict:
@@ -153,7 +163,7 @@ class BaseDpoDataset(BaseMapDataset):
         return self._process_sample(self.transform_preference(sample))
 
     def _to_messages_list(
-        self, turn: Union[str, dict, list[dict]], role: Role
+        self, turn: str | dict | list[dict], role: Role
     ) -> list[dict]:
         """Convert a turn to a conversation dictionary."""
         if isinstance(turn, str):

@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 from unittest.mock import ANY, Mock, call, patch
 
 import pytest
@@ -85,6 +84,11 @@ def test_sky_client_azure_name():
 def test_sky_client_k8s_name():
     client = SkyClient()
     assert client.SupportedClouds.K8S.value == "k8s"
+
+
+def test_sky_client_nebius_name():
+    client = SkyClient()
+    assert client.SupportedClouds.NEBIUS.value == "nebius"
 
 
 def test_convert_job_to_task(
@@ -267,7 +271,7 @@ def test_convert_job_to_task_with_populated_image_and_dict(
     ],
 )
 def test_get_use_spot_vm_override(
-    env_var_use_spot_vm: Optional[str], expected_use_spot_vm: bool
+    env_var_use_spot_vm: str | None, expected_use_spot_vm: bool
 ):
     if env_var_use_spot_vm is not None:
         with patch.dict(
@@ -287,6 +291,7 @@ def test_sky_client_launch(
             job = _get_default_job("gcp")
             mock_resource_handle = Mock()
             mock_resource_handle.cluster_name = "mycluster"
+            mock_resource_handle.get_hourly_price.return_value = 2.5
             mock_launch.return_value = (1, mock_resource_handle)
             mock_stream_and_get.return_value = (1, mock_resource_handle)
             client = SkyClient()
@@ -299,6 +304,7 @@ def test_sky_client_launch(
                 metadata="",
                 done=False,
                 state=JobState.PENDING,
+                cost_per_hour=2.5,
             )
             assert job_status == expected_job_status
             mock_launch.assert_called_once_with(
@@ -318,6 +324,7 @@ def test_sky_client_launch_no_stop(
             job.resources.disk_tier = "best"
             mock_resource_handle = Mock()
             mock_resource_handle.cluster_name = "mycluster"
+            mock_resource_handle.get_hourly_price.return_value = 2.5
             mock_launch.return_value = (1, mock_resource_handle)
             mock_stream_and_get.return_value = (1, mock_resource_handle)
             client = SkyClient()
@@ -330,6 +337,7 @@ def test_sky_client_launch_no_stop(
                 metadata="",
                 done=False,
                 state=JobState.PENDING,
+                cost_per_hour=2.5,
             )
             assert job_status == expected_job_status
             mock_launch.assert_called_once_with(
@@ -345,6 +353,7 @@ def test_sky_client_launch_kwarg(mock_sky_data_storage):
             job = _get_default_job("gcp")
             mock_resource_handle = Mock()
             mock_resource_handle.cluster_name = "mycluster"
+            mock_resource_handle.get_hourly_price.return_value = 2.5
             mock_launch.return_value = (1, mock_resource_handle)
             mock_stream_and_get.return_value = (1, mock_resource_handle)
             client = SkyClient()
@@ -357,6 +366,7 @@ def test_sky_client_launch_kwarg(mock_sky_data_storage):
                 metadata="",
                 done=False,
                 state=JobState.PENDING,
+                cost_per_hour=2.5,
             )
             assert job_status == expected_job_status
             mock_launch.assert_called_once_with(
@@ -372,6 +382,7 @@ def test_sky_client_launch_kwarg_value(mock_sky_data_storage):
             job = _get_default_job("gcp")
             mock_resource_handle = Mock()
             mock_resource_handle.cluster_name = "mycluster"
+            mock_resource_handle.get_hourly_price.return_value = 2.5
             mock_launch.return_value = (1, mock_resource_handle)
             mock_stream_and_get.return_value = (1, mock_resource_handle)
             client = SkyClient()
@@ -384,6 +395,7 @@ def test_sky_client_launch_kwarg_value(mock_sky_data_storage):
                 metadata="",
                 done=False,
                 state=JobState.PENDING,
+                cost_per_hour=2.5,
             )
             assert job_status == expected_job_status
             mock_launch.assert_called_once_with(
@@ -399,6 +411,7 @@ def test_sky_client_launch_unused_kwarg(mock_sky_data_storage):
             job = _get_default_job("gcp")
             mock_resource_handle = Mock()
             mock_resource_handle.cluster_name = "mycluster"
+            mock_resource_handle.get_hourly_price.return_value = 2.5
             mock_launch.return_value = (1, mock_resource_handle)
             mock_stream_and_get.return_value = (1, mock_resource_handle)
             client = SkyClient()
@@ -411,6 +424,7 @@ def test_sky_client_launch_unused_kwarg(mock_sky_data_storage):
                 metadata="",
                 done=False,
                 state=JobState.PENDING,
+                cost_per_hour=2.5,
             )
             assert job_status == expected_job_status
             mock_launch.assert_called_once_with(
@@ -426,6 +440,7 @@ def test_sky_client_launch_with_cluster_name(mock_sky_data_storage):
             job = _get_default_job("gcp")
             mock_resource_handle = Mock()
             mock_resource_handle.cluster_name = "cluster_name"
+            mock_resource_handle.get_hourly_price.return_value = 2.5
             mock_launch.return_value = (1, mock_resource_handle)
             mock_stream_and_get.return_value = (1, mock_resource_handle)
             client = SkyClient()
@@ -438,6 +453,7 @@ def test_sky_client_launch_with_cluster_name(mock_sky_data_storage):
                 metadata="",
                 done=False,
                 state=JobState.PENDING,
+                cost_per_hour=2.5,
             )
             assert job_status == expected_job_status
             mock_launch.assert_called_once_with(

@@ -159,10 +159,12 @@ engine = VLLMInferenceEngine(
 ```
 
 The LoRA adapter can be:
+
 - A local directory containing the adapter weights
 - A HuggingFace Hub model ID (e.g., `username/model-lora-adapter`)
 
 vLLM will automatically:
+
 - Load the base model
 - Apply the LoRA adapter weights
 - Configure the appropriate LoRA rank from the adapter checkpoint
@@ -253,21 +255,21 @@ model_params = ModelParams(
 
 1. **Basic Server** - Suitable for development and testing:
 
-```bash
-python -m vllm.entrypoints.openai.api_server \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --port 6864
-```
+    ```bash
+    python -m vllm.entrypoints.openai.api_server \
+        --model meta-llama/Llama-3.1-8B-Instruct \
+        --port 6864
+    ```
 
 2. **Multi-GPU Server** - For large models requiring multiple GPUs:
 
-```bash
-python -m vllm.entrypoints.openai.api_server \
-    --model meta-llama/Llama-3.3-70B-Instruct \
-    --port 6864 \
-    --tensor-parallel-size 4
+    ```bash
+    python -m vllm.entrypoints.openai.api_server \
+        --model meta-llama/Llama-3.3-70B-Instruct \
+        --port 6864 \
+        --tensor-parallel-size 4
 
-```
+    ```
 
 #### Client Configuration
 
@@ -553,31 +555,6 @@ engine = TogetherInferenceEngine(
 
 The models available via this API can be found at [together.ai](https://www.together.ai/).
 
-### Lambda Inference API
-
-[Lambda Inference API](https://lambda.ai) enables you to use large language models (LLMs) without the need to set up a server. No limits are placed on the rate of requests.
-
-**Basic Usage**
-
-```{testcode}
-from oumi.inference import LambdaInferenceEngine
-from oumi.core.configs import ModelParams, RemoteParams
-
-engine = LambdaInferenceEngine(
-    model_params=ModelParams(
-        model_name="llama-4-scout-17b-16e-instruct"
-    ),
-)
-```
-
-**Supported Models**
-
-The full list of models available via this API can be found at [docs.lambda.ai](https://docs.lambda.ai/public-cloud/lambda-inference-api/#listing-models).
-
-**Resources**
-
-- [Lambda AI API Documentation](https://docs.lambda.ai/public-cloud/lambda-inference-api)
-
 ### DeepSeek
 
 [DeepSeek](https://deepseek.com) allows to access the DeepSeek models (Chat, Code, and Reasoning) through the DeepSeek AI Platform.
@@ -603,6 +580,67 @@ The DeepSeek models available via this API as of late Jan'2025 are listed below.
 |---------------------------------------|---------------------------|
 | DeepSeek-V3                           | deepseek-chat             |
 | DeepSeek-R1 (reasoning with CoT)      | deepseek-reasoner         |
+
+### Fireworks AI
+
+[Fireworks AI](https://fireworks.ai) provides fast and cost-effective inference for a wide range of open source and fine-tuned models through their serverless API.
+
+**Basic Usage**
+
+```{testcode}
+from oumi.inference import FireworksInferenceEngine
+from oumi.core.configs import ModelParams, RemoteParams
+
+engine = FireworksInferenceEngine(
+    model_params=ModelParams(
+        model_name="accounts/fireworks/models/llama-v3p1-8b-instruct"
+    )
+)
+```
+
+**Supported Models**
+
+Fireworks AI hosts a variety of models including Llama, Qwen, Mixtral, and many others. For an up-to-date list, please visit [fireworks.ai/models](https://fireworks.ai/models).
+
+**Resources**
+
+- [Fireworks AI Documentation](https://docs.fireworks.ai/)
+- [Available Models](https://fireworks.ai/models)
+
+### OpenRouter
+
+[OpenRouter](https://openrouter.ai) provides a unified API that gives access to hundreds of AI models from multiple providers (OpenAI, Anthropic, Google, Meta, and more) through a single endpoint. It automatically handles fallbacks and can select cost-effective options.
+
+**Basic Usage**
+
+```{testcode}
+from oumi.inference import OpenRouterInferenceEngine
+from oumi.core.configs import ModelParams
+
+engine = OpenRouterInferenceEngine(
+    model_params=ModelParams(
+        model_name="anthropic/claude-sonnet-4.5"
+    )
+)
+```
+
+**Model Naming**
+
+OpenRouter uses a `provider/model` naming format. Examples:
+
+| Provider   | Model Name                        |
+|------------|-----------------------------------|
+| Anthropic  | `anthropic/claude-sonnet-4.5`     |
+| OpenAI     | `openai/gpt-5.2`                  |
+| Meta       | `meta-llama/llama-4-maverick`     |
+| Google     | `google/gemini-2.0-flash`         |
+
+For a full list of available models, visit [openrouter.ai/models](https://openrouter.ai/models).
+
+**Resources**
+
+- [OpenRouter Documentation](https://openrouter.ai/docs)
+- [Available Models](https://openrouter.ai/models)
 
 ### SambaNova
 
@@ -700,6 +738,60 @@ The models available via this API can be found at [docs.parasail.io](https://doc
 **Resources**
 
 - [Parasail.io Documentation](https://docs.parasail.io)
+
+## Batch Inference
+
+Several cloud API engines support batch inference, which allows you to process large numbers of requests asynchronously at reduced cost. Batch jobs are queued and processed within a completion window (typically 24 hours).
+
+**Basic Usage**
+
+```python
+from oumi.inference import OpenAIInferenceEngine
+from oumi.core.configs import ModelParams
+from oumi.core.types.conversation import Conversation, Message, Role
+
+engine = OpenAIInferenceEngine(
+    model_params=ModelParams(model_name="gpt-4o-mini")
+)
+
+# Create conversations to process
+conversations = [
+    Conversation(messages=[Message(content="Hello!", role=Role.USER)]),
+    Conversation(messages=[Message(content="How are you?", role=Role.USER)]),
+]
+
+# Submit batch job
+batch_id = engine.infer_batch(conversations)
+
+# Check status
+status = engine.get_batch_status(batch_id)
+print(f"Status: {status.status}")
+
+# Retrieve results when complete
+if status.status.value == "completed":
+    results = engine.get_batch_results(batch_id, conversations)
+```
+
+### Supported Engines
+
+The following table shows which engines support batch inference:
+
+| Engine | Batch Support | Notes |
+|--------|---------------|-------|
+| OpenAI | ✅ Supported | OpenAI Batch API |
+| Parasail | ✅ Supported | OpenAI-compatible Batch API |
+| Anthropic | 🔜 Coming soon | Message Batches API |
+| Together | 🔜 Coming soon | Together Batch API |
+| Fireworks | 🔜 Coming soon | Fireworks Batch API |
+| DeepSeek | ❌ Not supported | |
+| Gemini | ❌ Not supported | |
+| Vertex AI | ❌ Not supported | |
+| Bedrock | ❌ Not supported | |
+| Lambda | ❌ Not supported | |
+| SambaNova | ❌ Not supported | |
+| OpenRouter | ❌ Not supported | |
+| Remote vLLM | ❌ Not supported | |
+| SGLang | ❌ Not supported | |
 
 ## See Also
 

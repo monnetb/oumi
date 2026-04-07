@@ -16,7 +16,6 @@ import io
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from oumi.core.configs import JobConfig
 
@@ -59,6 +58,18 @@ class JobStatus:
     #: For more fine-grained information about the job, see the status field.
     state: JobState
 
+    #: The cost per hour of the cluster in USD.
+    #: Includes all nodes. None if cost information is unavailable.
+    cost_per_hour: float | None = None
+
+    #: Unix timestamp when the job started running.
+    #: None if the job hasn't started yet or timing data is unavailable.
+    start_at: float | None = None
+
+    #: Unix timestamp when the job completed.
+    #: None if the job hasn't completed yet or timing data is unavailable.
+    end_at: float | None = None
+
 
 class BaseCluster(ABC):
     """Base class for a compute cluster (job queue)."""
@@ -100,7 +111,7 @@ class BaseCluster(ABC):
 
     @abstractmethod
     def get_logs_stream(
-        self, cluster_name: str, job_id: Optional[str] = None
+        self, cluster_name: str, job_id: str | None = None
     ) -> io.TextIOBase:
         """Gets a stream that tails the logs of the target job.
 

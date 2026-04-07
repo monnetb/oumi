@@ -12,7 +12,7 @@ cli_usage
 
 As Large Language Models (LLMs) continue to evolve, traditional evaluation benchmarks, which focus primarily on task-specific metrics, are increasingly inadequate for capturing the full scope of a model's generative potential. In real-world applications, LLM capabilities such as creativity, coherence, and the ability to effectively handle nuanced and open-ended queries are critical and cannot be fully assessed through standardized metrics alone. While human raters are often employed to evaluate these aspects, the process is costly and time-consuming. As a result, the use of LLM-based evaluation systems, or "LLM judges", has gained traction as a more scalable and efficient alternative.
 
-Oumi provides a versatile LLM Judge framework that enables the automation of pointwise and pairwise **model evaluations**, **dataset curation**, and **quality assurance** for model deployment. You can easily customize the evaluation prompts and criteria, select any underlying judge LLM (open-source or proprietary), and locally host or access it remotely via an API.
+Oumi OSS provides a versatile LLM Judge framework that enables the automation of pointwise and pairwise **model evaluations**, **dataset curation**, and **quality assurance** for model deployment. You can easily customize the evaluation prompts and criteria, select any underlying judge LLM (open-source or proprietary), and locally host or access it remotely via an API.
 
 ## Overview
 
@@ -26,7 +26,7 @@ The evaluation process is carried out in two distinct steps:
 The diagram below illustrates these two steps:
 ![Judge Figure](/_static/judge/judge_figure.svg)
 
-Oumi offers flexible APIs for both {doc}`Inference </user_guides/infer/infer>` and Judgement ("LLM Judge" API).
+Oumi OSS offers flexible APIs for both {doc}`Inference </user_guides/infer/infer>` and Judgement ("LLM Judge" API).
 
 ## When to Use?
 
@@ -40,11 +40,12 @@ Our LLM Judge API is fully customizable and can be applied across a wide range o
 
 ## Quick Start
 
-To leverage an LLM judge, we instantiate a {py:class}`~oumi.judges.simple_judge.SimpleJudge` class using a judge configuration ({py:class}`~oumi.core.configs.judge_config.JudgeConfig`). Oumi offers several {doc}`built-in judges </user_guides/judge/built_in_judges>` that you can use out-of-the-box for common evaluation tasks (see our {gh}`GitHub page <configs/projects/judges/>` for the complete list). Alternatively, you can create completely custom judges by defining your own prompts, output formats, and evaluation criteria in a {doc}`custom config </user_guides/judge/judge_config>`.
+To leverage an LLM judge, we instantiate a {py:class}`~oumi.judges.simple_judge.SimpleJudge` class using a judge configuration ({py:class}`~oumi.core.configs.judge_config.JudgeConfig`). Oumi OSS offers several {doc}`built-in judges </user_guides/judge/built_in_judges>` that you can use out-of-the-box for common evaluation tasks (see our {gh}`GitHub page <configs/projects/judges/>` for the complete list). Alternatively, you can create completely custom judges by defining your own prompts, output formats, and evaluation criteria in a {doc}`custom config </user_guides/judge/judge_config>`.
 
 ### Built-In Judges (predefined configuration)
 
 Select a judge from our {gh}`GitHub page <configs/projects/judges/>` and use it, as shown below. The following example is for the {gh}`Truthfulness judge <configs/projects/judges/generic/truthfulness.yaml>` (judges/generic/truthfulness).
+
 ```python
 from oumi.judges.simple_judge import SimpleJudge
 
@@ -71,6 +72,7 @@ for output in outputs:
 ### Custom Judge
 
 Step 1: Define your custom configuration, such as `./my_judge_config.yaml`.
+
 ```yaml
 judge_params:
   prompt_template: |
@@ -100,6 +102,7 @@ inference_config:
 ```
 
 Step 2: Load your custom configuration file and evaluate a dataset.
+
 ```python
 from oumi.judges.simple_judge import SimpleJudge
 
@@ -124,6 +127,7 @@ for output in outputs:
 ```
 
 ## Next Steps
+
 - Explore our {doc}`Built-In Judges </user_guides/judge/built_in_judges>` for out-of-the-box evaluation criteria
 - Understand the {doc}`Judge Configuration </user_guides/judge/judge_config>` options
 - Explore {doc}`CLI usage </user_guides/judge/cli_usage>` for command-line evaluation

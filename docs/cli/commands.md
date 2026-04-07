@@ -1,12 +1,12 @@
 # CLI Reference
 
-This page contains a complete reference of all CLI commands available in Oumi.
+This page contains a complete reference of all CLI commands available in Oumi OSS.
 
 For detailed guides and examples of specific areas (training, inference, evaluation, etc.), please refer to the corresponding user guides in the documentation.
 
 ## CLI Overrides
 
-Any Oumi command which takes a config path as an argument (`train`, `evaluate`, `infer`, etc.) can override parameters from the command line. For example:
+Any Oumi OSS command which takes a config path as an argument (`train`, `evaluate`, `infer`, etc.) can override parameters from the command line. For example:
 
 ```bash
 oumi train -c configs/recipes/smollm/sft/135m/quickstart_train.yaml \
@@ -16,7 +16,7 @@ oumi train -c configs/recipes/smollm/sft/135m/quickstart_train.yaml \
   --training.output_dir output/smollm-135m-sft
 ```
 
-Oumi uses [OmegaConf](https://omegaconf.readthedocs.io/) to parse the configs from YAML files, and to parse the command line overrides. OmegaConf allows a Pythonic specification of parameters to override with dot-separated syntax, as seen above. Note that for lists (ex. `data.train.datasets`), you can specify the index either with brackets (`[0]`) or dot notation (`.0`).
+Oumi OSS uses [OmegaConf](https://omegaconf.readthedocs.io/) to parse the configs from YAML files, and to parse the command line overrides. OmegaConf allows a Pythonic specification of parameters to override with dot-separated syntax, as seen above. Note that for lists (ex. `data.train.datasets`), you can specify the index either with brackets (`[0]`) or dot notation (`.0`).
 
 With OmegaConf, you can set the value of an entire dictionary or list, in addition to overriding individual primitive values. For example:
 
@@ -121,6 +121,42 @@ For a detailed guide on data synthesis, see {doc}`/user_guides/synth`.
 
 ```{typer} oumi.cli.main.app.synth
   :prog: oumi synth
+  :make-sections:
+  :preferred: svg
+  :theme: monokai
+  :width: 80
+```
+
+## Dataset Analysis
+
+For a detailed guide on dataset analysis, see {doc}`/user_guides/analyze/analyze`.
+
+```{typer} oumi.cli.main.app.analyze
+  :prog: oumi analyze
+  :make-sections:
+  :preferred: svg
+  :theme: monokai
+  :width: 80
+```
+
+## Hyperparameter Tuning
+
+For a detailed guide on hyperparameter tuning, see {doc}`/user_guides/tune`.
+
+```{typer} oumi.cli.main.app.tune
+  :prog: oumi tune
+  :make-sections:
+  :preferred: svg
+  :theme: monokai
+  :width: 80
+```
+
+## Quantization
+
+For a detailed guide on model quantization, see {doc}`/user_guides/quantization`.
+
+```{typer} oumi.cli.main.app.quantize
+  :prog: oumi quantize
   :make-sections:
   :preferred: svg
   :theme: monokai

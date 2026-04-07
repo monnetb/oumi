@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import warnings
+from collections.abc import Callable
 from pprint import pformat
-from typing import Callable, Optional, cast
+from typing import cast
 
 import transformers
 import trl
@@ -30,10 +31,15 @@ from oumi.core.trainers import (
 )
 from oumi.core.trainers import Trainer as OumiTrainer
 from oumi.utils.logging import logger
+from oumi.utils.packaging import (
+    is_trl_v0_28_or_later,
+    require_gold_trainer,
+    verify_trl_vllm_compatibility,
+)
 
 
 def build_trainer(
-    trainer_type: TrainerType, processor: Optional[BaseProcessor], verbose: bool = False
+    trainer_type: TrainerType, processor: BaseProcessor | None, verbose: bool = False
 ) -> Callable[..., BaseTrainer]:
     """Builds a trainer creator functor based on the provided configuration.
 
@@ -112,11 +118,25 @@ def build_trainer(
     elif trainer_type == TrainerType.TRL_DPO:
         return _create_hf_builder_fn(TrlDpoTrainer)
     elif trainer_type == TrainerType.TRL_KTO:
-        return _create_hf_builder_fn(trl.KTOTrainer)
+        if is_trl_v0_28_or_later():
+            from trl.experimental.kto import KTOTrainer
+        else:
+            KTOTrainer = trl.KTOTrainer
+        return _create_hf_builder_fn(KTOTrainer)
     elif trainer_type == TrainerType.TRL_GRPO:
         return _create_hf_builder_fn(trl.GRPOTrainer)
     elif trainer_type == TrainerType.TRL_GKD:
-        return _create_hf_builder_fn(trl.GKDTrainer)
+        if is_trl_v0_28_or_later():
+            from trl.experimental.gkd import GKDTrainer
+        else:
+            GKDTrainer = trl.GKDTrainer  # type: ignore[attr-defined]
+        return _create_hf_builder_fn(GKDTrainer)
+    elif trainer_type == TrainerType.TRL_GOLD:
+        require_gold_trainer()
+        verify_trl_vllm_compatibility("TRL GOLD trainer")
+        from trl.experimental.gold import GOLDTrainer
+
+        return _create_hf_builder_fn(GOLDTrainer)
     elif trainer_type == TrainerType.HF:
         return _create_hf_builder_fn(transformers.Trainer)
     elif trainer_type == TrainerType.OUMI:

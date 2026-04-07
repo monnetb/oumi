@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from types import MappingProxyType
-from typing import Optional
 
 from oumi.core.configs import (
     GenerationParams,
@@ -25,13 +24,15 @@ from oumi.core.inference import BaseInferenceEngine
 from oumi.inference import (
     AnthropicInferenceEngine,
     BedrockInferenceEngine,
+    CerebrasInferenceEngine,
     DeepSeekInferenceEngine,
+    FireworksInferenceEngine,
     GoogleGeminiInferenceEngine,
     GoogleVertexInferenceEngine,
-    LambdaInferenceEngine,
     LlamaCppInferenceEngine,
     NativeTextInferenceEngine,
     OpenAIInferenceEngine,
+    OpenRouterInferenceEngine,
     ParasailInferenceEngine,
     RemoteInferenceEngine,
     RemoteVLLMInferenceEngine,
@@ -46,13 +47,15 @@ ENGINE_MAP: MappingProxyType[InferenceEngineType, type[BaseInferenceEngine]] = (
         {
             InferenceEngineType.ANTHROPIC: AnthropicInferenceEngine,
             InferenceEngineType.BEDROCK: BedrockInferenceEngine,
+            InferenceEngineType.CEREBRAS: CerebrasInferenceEngine,
             InferenceEngineType.DEEPSEEK: DeepSeekInferenceEngine,
+            InferenceEngineType.FIREWORKS: FireworksInferenceEngine,
             InferenceEngineType.GOOGLE_GEMINI: GoogleGeminiInferenceEngine,
             InferenceEngineType.GOOGLE_VERTEX: GoogleVertexInferenceEngine,
-            InferenceEngineType.LAMBDA: LambdaInferenceEngine,
             InferenceEngineType.LLAMACPP: LlamaCppInferenceEngine,
             InferenceEngineType.NATIVE: NativeTextInferenceEngine,
             InferenceEngineType.OPENAI: OpenAIInferenceEngine,
+            InferenceEngineType.OPENROUTER: OpenRouterInferenceEngine,
             InferenceEngineType.PARASAIL: ParasailInferenceEngine,
             InferenceEngineType.REMOTE_VLLM: RemoteVLLMInferenceEngine,
             InferenceEngineType.REMOTE: RemoteInferenceEngine,
@@ -68,8 +71,8 @@ ENGINE_MAP: MappingProxyType[InferenceEngineType, type[BaseInferenceEngine]] = (
 def build_inference_engine(
     engine_type: InferenceEngineType,
     model_params: ModelParams,
-    remote_params: Optional[RemoteParams] = None,
-    generation_params: Optional[GenerationParams] = None,
+    remote_params: RemoteParams | None = None,
+    generation_params: GenerationParams | None = None,
 ) -> BaseInferenceEngine:
     """Returns the inference engine based on the provided config.
 

@@ -1,6 +1,6 @@
 # Recipes
 
-To help you get started with Oumi, we've prepared a set of recipes for common use cases. These recipes are designed to be easy to understand and modify, and should be a good starting point for your own projects. Each recipe is a YAML file that can be used to train, evaluate, or deploy a model. We also have corresponding job configs for most recipes that let you run the job remotely; they're usually files ending in `_job.yaml` in the same directory as the recipe config.
+To help you get started with Oumi OSS, we've prepared a set of recipes for common use cases. These recipes are designed to be easy to understand and modify, and should be a good starting point for your own projects. Each recipe is a YAML file that can be used to train, evaluate, or deploy a model. We also have corresponding job configs for most recipes that let you run the job remotely; they're usually files ending in `_job.yaml` in the same directory as the recipe config.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The recipes are organized by model family and task type. Each recipe includes:
 - Platform-specific job configurations (Cloud (e.g. GCP), Polaris, or local)
 - Multiple training methods (FFT, LoRA, QLoRA, FSDP/DDP)
 
-To use a recipe, simply download the desired configuration file, modify any parameters as needed, and run the configuration using the Oumi CLI. For example:
+To use a recipe, simply download the desired configuration file, modify any parameters as needed, and run the configuration using the Oumi OSS CLI. For example:
 
 ```bash
 oumi train --config path/to/config.yaml
@@ -26,24 +26,24 @@ You can also check out the `README.md` in each recipe's directory for more detai
 
 | Model | Configuration | Links |
 |-------|--------------|-------|
-| DeepSeek R1 671B | `recipes/deepseek_r1/inference/671b_together_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/671b_together_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/671b_together_infer.yaml` |
+| DeepSeek R1 671B | `recipes/deepseek_r1/inference/671b_together/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/671b_together/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/671b_together/infer.yaml` |
 | Distilled Llama 8B | `recipes/deepseek_r1/sft/distill_llama_8b/full_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_llama_8b/full_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_llama_8b/full_train.yaml` |
 | | `recipes/deepseek_r1/sft/distill_llama_8b/lora_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_llama_8b/lora_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_llama_8b/lora_train.yaml` |
 | | `recipes/deepseek_r1/sft/distill_llama_8b/qlora_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_llama_8b/qlora_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_llama_8b/qlora_train.yaml` |
 | | `recipes/deepseek_r1/evaluation/distill_llama_8b/eval.yaml` | {download}`Download </../configs/recipes/deepseek_r1/evaluation/distill_llama_8b/eval.yaml>` {gh}`configs/recipes/deepseek_r1/evaluation/distill_llama_8b/eval.yaml` |
-| | `recipes/deepseek_r1/inference/distill_llama_8b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_8b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_8b_infer.yaml` |
+| | `recipes/deepseek_r1/inference/distill_llama_8b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_8b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_8b/infer.yaml` |
 | Distilled Llama 70B | `recipes/deepseek_r1/sft/distill_llama_70b/full_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_llama_70b/full_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_llama_70b/full_train.yaml` |
 | | `recipes/deepseek_r1/sft/distill_llama_70b/lora_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_llama_70b/lora_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_llama_70b/lora_train.yaml` |
 | | `recipes/deepseek_r1/sft/distill_llama_70b/qlora_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_llama_70b/qlora_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_llama_70b/qlora_train.yaml` |
 | | `recipes/deepseek_r1/evaluation/distill_llama_70b/eval.yaml` | {download}`Download </../configs/recipes/deepseek_r1/evaluation/distill_llama_70b/eval.yaml>` {gh}`configs/recipes/deepseek_r1/evaluation/distill_llama_70b/eval.yaml` |
-| | `recipes/deepseek_r1/inference/distill_llama_70b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_70b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_70b_infer.yaml` |
+| | `recipes/deepseek_r1/inference/distill_llama_70b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_70b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_70b/infer.yaml` |
 | Distilled Qwen 1.5B | `recipes/deepseek_r1/sft/distill_qwen_1_5b/full_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_qwen_1_5b/full_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_qwen_1_5b/full_train.yaml` |
 | | `recipes/deepseek_r1/sft/distill_qwen_1_5b/lora_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_qwen_1_5b/lora_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_qwen_1_5b/lora_train.yaml` |
 | | `recipes/deepseek_r1/evaluation/distill_qwen_1_5b/eval.yaml` | {download}`Download </../configs/recipes/deepseek_r1/evaluation/distill_qwen_1_5b/eval.yaml>` {gh}`configs/recipes/deepseek_r1/evaluation/distill_qwen_1_5b/eval.yaml` |
-| | `recipes/deepseek_r1/inference/distill_qwen_1_5b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_1_5b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_1_5b_infer.yaml` |
+| | `recipes/deepseek_r1/inference/distill_qwen_1_5b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_1_5b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_1_5b/infer.yaml` |
 | Distilled Qwen 32B | `recipes/deepseek_r1/sft/distill_qwen_32b/lora_train.yaml` | {download}`Download </../configs/recipes/deepseek_r1/sft/distill_qwen_32b/lora_train.yaml>` {gh}`configs/recipes/deepseek_r1/sft/distill_qwen_32b/lora_train.yaml` |
 | | `recipes/deepseek_r1/evaluation/distill_qwen_32b/eval.yaml` | {download}`Download </../configs/recipes/deepseek_r1/evaluation/distill_qwen_32b/eval.yaml>` {gh}`configs/recipes/deepseek_r1/evaluation/distill_qwen_32b/eval.yaml` |
-| | `recipes/deepseek_r1/inference/distill_qwen_32b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_32b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_32b_infer.yaml` |
+| | `recipes/deepseek_r1/inference/distill_qwen_32b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_32b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_32b/infer.yaml` |
 
 ### 🦙 Llama Family
 
@@ -99,7 +99,7 @@ You can also check out the `README.md` in each recipe's directory for more detai
 
 ### 🎯 Training Techniques
 
-This section lists an example config for various training techniques supported by Oumi.
+This section lists an example config for various training techniques supported by Oumi OSS.
 
 | Technique | Configuration | Links |
 |-------|--------------|-------|
@@ -114,11 +114,11 @@ This section lists an example config for various training techniques supported b
 
 | Model | Configuration | Links |
 |-------|--------------|-------|
-| DeepSeek R1 671B | `recipes/deepseek_r1/inference/671b_together_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/671b_together_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/671b_together_infer.yaml` |
-| DeepSeek R1 Distill Llama 8B | `recipes/deepseek_r1/inference/distill_llama_8b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_8b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_8b_infer.yaml` |
-| DeepSeek R1 Distill Llama 70B | `recipes/deepseek_r1/inference/distill_llama_70b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_70b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_70b_infer.yaml` |
-| DeepSeek R1 Distill Qwen 1.5B | `recipes/deepseek_r1/inference/distill_qwen_1_5b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_1_5b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_1_5b_infer.yaml` |
-| DeepSeek R1 Distill Qwen 32B | `recipes/deepseek_r1/inference/distill_qwen_32b_infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_32b_infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_32b_infer.yaml` |
+| DeepSeek R1 671B | `recipes/deepseek_r1/inference/671b_together/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/671b_together/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/671b_together/infer.yaml` |
+| DeepSeek R1 Distill Llama 8B | `recipes/deepseek_r1/inference/distill_llama_8b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_8b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_8b/infer.yaml` |
+| DeepSeek R1 Distill Llama 70B | `recipes/deepseek_r1/inference/distill_llama_70b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_llama_70b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_llama_70b/infer.yaml` |
+| DeepSeek R1 Distill Qwen 1.5B | `recipes/deepseek_r1/inference/distill_qwen_1_5b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_1_5b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_1_5b/infer.yaml` |
+| DeepSeek R1 Distill Qwen 32B | `recipes/deepseek_r1/inference/distill_qwen_32b/infer.yaml` | {download}`Download </../configs/recipes/deepseek_r1/inference/distill_qwen_32b/infer.yaml>` {gh}`configs/recipes/deepseek_r1/inference/distill_qwen_32b/infer.yaml` |
 | Llama 3.1 8B | `recipes/llama3_1/inference/8b_infer.yaml` | {download}`Download </../configs/recipes/llama3_1/inference/8b_infer.yaml>` {gh}`configs/recipes/llama3_1/inference/8b_infer.yaml` |
 | | `recipes/llama3_1/inference/8b_sglang_infer.yaml` | {download}`Download </../configs/recipes/llama3_1/inference/8b_sglang_infer.yaml>` {gh}`configs/recipes/llama3_1/inference/8b_sglang_infer.yaml` |
 | | `recipes/llama3_1/inference/8b_rvllm_infer.yaml` | {download}`Download </../configs/recipes/llama3_1/inference/8b_rvllm_infer.yaml>` {gh}`configs/recipes/llama3_1/inference/8b_rvllm_infer.yaml` |

@@ -33,9 +33,9 @@ sphinx_logger.addFilter(DuplicateObjectFilter())
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Oumi"
-copyright = "2025 - Oumi"
-author = "Oumi Community"
+project = "Oumi OSS"
+copyright = "2025-2026 - Oumi"
+author = "Oumi OSS Community"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -46,7 +46,6 @@ extensions = [
     "myst_nb",  # implicitly enables myst_parser
     "sphinx_copybutton",
     "sphinx_design",
-    "sphinx_rtd_theme",
     # "sphinx_term.termynal",  # Not currently used, but could be useful in the future
     "sphinx.ext.autodoc",
     "sphinx.ext.coverage",
@@ -107,9 +106,11 @@ autodoc_mock_imports = ["oumi.models.experimental"]
 html_theme = "sphinx_book_theme"
 html_show_sourcelink = True
 html_show_sphinx = False
-html_title = "Oumi"
+html_title = "Oumi OSS"
 html_favicon = "_static/logo/favicon.png"
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
+html_js_files = ["custom.js"]
 
 add_module_names = True
 
@@ -133,7 +134,7 @@ html_theme_options = {
         # Note: the light logo is intentionally used for the dark theme
         "image_light": "_static/logo/oumi_logo_dark.png",
         "image_dark": "_static/logo/oumi_logo_light.png",
-        "alt_text": "Oumi Documentation - Home",
+        "alt_text": "Oumi OSS Documentation - Home",
     },
     "analytics": {
         "google_analytics_id": "G-YZE0YFDLPT",
@@ -142,7 +143,16 @@ html_theme_options = {
         "json_url": "https://oumi.ai/docs/version.json",
         "version_match": os.environ.get("OUMI_VERSION", "latest"),
     },
-    "navbar_start": ["version-switcher"],
+    "footer_start": [],
+    "footer_end": ["oumi-footer-links"],
+}
+
+html_sidebars = {
+    "**": [
+        "sidebar-logo-version.html",
+        "search-field.html",
+        "sbt-sidebar-nav.html",
+    ]
 }
 
 # see https://pygments.org/demo/ for options

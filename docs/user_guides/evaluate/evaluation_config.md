@@ -1,6 +1,6 @@
 # Evaluation Configuration
 
-Oumi allows users to define their evaluation configurations through a `YAML` file, providing a flexible, human-readable, and easily customizable format for setting up experiments. By using `YAML`, users can effortlessly configure model and generation parameters, and define a list of tasks to evaluate with. This approach not only streamlines the process of configuring evaluations but also ensures that configurations are easily versioned, shared, and reproduced across different environments and teams.
+Oumi OSS allows users to define their evaluation configurations through a `YAML` file, providing a flexible, human-readable, and easily customizable format for setting up experiments. By using `YAML`, users can effortlessly configure model and generation parameters, and define a list of tasks to evaluate with. This approach not only streamlines the process of configuring evaluations but also ensures that configurations are easily versioned, shared, and reproduced across different environments and teams.
 
 # Configuration Structure
 
@@ -29,11 +29,6 @@ tasks:
     task_name: hellaswag
     eval_kwargs:
       num_fewshot: 10
-
-  # AlpacaEval Task
-  - evaluation_backend: alpaca_eval
-    version: 2.0  # or 1.0
-    num_samples: 805
 
   # Custom Task
   - evaluation_backend: custom
@@ -65,12 +60,6 @@ run_name: "phi3-evaluation"
     - `evaluation_backend`: "lm_harness"
     - `task_name`: Name of the LM Harness task
     - `num_fewshot`: Number of few-shot examples (0 for zero-shot)
-    - `num_samples`: Number of samples to evaluate
-    - `eval_kwargs`: Additional task-specific parameters
-
-  - AlpacaEval Task Parameters: ({py:class}`~oumi.core.configs.params.evaluation_params.AlpacaEvalTaskParams`)
-    - `evaluation_backend`: "alpaca_eval"
-    - `version`: AlpacaEval version (1.0 or 2.0)
     - `num_samples`: Number of samples to evaluate
     - `eval_kwargs`: Additional task-specific parameters
 

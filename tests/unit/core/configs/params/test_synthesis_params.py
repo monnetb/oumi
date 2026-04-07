@@ -24,6 +24,7 @@ from oumi.core.configs.params.synthesis_params import (
     ExampleSource,
     GeneralSynthesisParams,
     GeneratedAttribute,
+    MultiTurnAttribute,
     SampledAttribute,
     SampledAttributeValue,
     SegmentationStrategy,
@@ -292,7 +293,7 @@ def test_permutable_attribute_invalid():
 
     # Test sample rates sum > 1
     with pytest.raises(
-        ValueError, match="SampledAttribute.possible_values must sum to 1.0"
+        ValueError, match="SampledAttribute.possible_values must sum to at most 1.0"
     ):
         SampledAttribute(
             id="test",
@@ -307,6 +308,54 @@ def test_permutable_attribute_invalid():
                 ),
             ],
         )
+
+
+def test_sampled_attribute_valid_floating_point_precision():
+    # Test floating point precision - values that sum to 1.0 but might have tiny errors
+    # This should not raise an error due to epsilon tolerance (1e-6)
+    # Using 0.1 which has a known floating point representation error
+    # When added directly: 0.1 + 0.1 + ... (10 times) != 1.0 exactly
+    # The error is ~1.1e-16, which is well within the 1e-6 epsilon tolerance
+    values = [
+        SampledAttributeValue(
+            id="v1", name="value1", description="desc1", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v2", name="value2", description="desc2", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v3", name="value3", description="desc3", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v4", name="value4", description="desc4", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v5", name="value5", description="desc5", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v6", name="value6", description="desc6", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v7", name="value7", description="desc7", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v8", name="value8", description="desc8", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v9", name="value9", description="desc9", sample_rate=0.1
+        ),
+        SampledAttributeValue(
+            id="v10", name="value10", description="desc10", sample_rate=0.1
+        ),
+    ]
+    attr = SampledAttribute(
+        id="test",
+        name="test",
+        description="test",
+        possible_values=values,
+    )
+    # Should succeed without raising an error
+    assert len(attr.possible_values) == 10
 
 
 def test_attribute_combination_valid():
@@ -388,6 +437,90 @@ def test_generated_attribute_invalid():
         GeneratedAttribute(
             id="test",
             instruction_messages=None,  # type: ignore
+        )
+
+
+def test_multiturn_attribute_invalid_min_turns():
+    with pytest.raises(
+        ValueError, match="MultiTurnAttribute.min_turns must be at least 1."
+    ):
+        MultiTurnAttribute(
+            id="conversation",
+            min_turns=0,
+            max_turns=2,
+            role_instruction_messages={
+                Role.USER: "You are a user.",
+                Role.ASSISTANT: "You are an assistant.",
+            },
+        )
+
+
+def test_multiturn_attribute_invalid_max_turns():
+    with pytest.raises(
+        ValueError,
+        match=(
+            "MultiTurnAttribute.max_turns must be greater than or equal to min_turns."
+        ),
+    ):
+        MultiTurnAttribute(
+            id="conversation",
+            min_turns=2,
+            max_turns=1,
+            role_instruction_messages={
+                Role.USER: "You are a user.",
+                Role.ASSISTANT: "You are an assistant.",
+            },
+        )
+
+
+def test_multiturn_attribute_invalid_output_system_prompt():
+    with pytest.raises(
+        ValueError,
+        match="MultiTurnAttribute.output_system_prompt must be a non-empty string.",
+    ):
+        MultiTurnAttribute(
+            id="conversation",
+            min_turns=1,
+            max_turns=2,
+            role_instruction_messages={
+                Role.USER: "You are a user.",
+                Role.ASSISTANT: "You are an assistant.",
+            },
+            output_system_prompt="",
+        )
+
+
+def test_multiturn_attribute_missing_role_instructions():
+    with pytest.raises(
+        ValueError,
+        match="MultiTurnAttribute.role_instruction_messages must define instructions",
+    ):
+        MultiTurnAttribute(
+            id="conversation",
+            min_turns=1,
+            max_turns=2,
+            role_instruction_messages={
+                Role.USER: "You are a user.",
+            },
+        )
+
+
+def test_multiturn_attribute_empty_role_instructions():
+    with pytest.raises(
+        ValueError,
+        match=(
+            "MultiTurnAttribute.role_instruction_messages must include a "
+            "non-empty persona"
+        ),
+    ):
+        MultiTurnAttribute(
+            id="conversation",
+            min_turns=1,
+            max_turns=2,
+            role_instruction_messages={
+                Role.USER: "",
+                Role.ASSISTANT: "You are an assistant.",
+            },
         )
 
 
@@ -543,6 +676,18 @@ def test_general_synthesis_params_valid():
                 ],
             )
         ],
+        multiturn_attributes=[
+            MultiTurnAttribute(
+                id="conversation",
+                min_turns=1,
+                max_turns=2,
+                role_instruction_messages={
+                    Role.USER: "You are a user. Turn {current_turn}",
+                    Role.ASSISTANT: "You are an assistant. Turn {current_turn}",
+                },
+                conversation_planner="Plan a {target_turns}-turn conversation.",
+            )
+        ],
         transformed_attributes=[
             TransformedAttribute(
                 id="trans1",
@@ -573,51 +718,37 @@ def test_general_synthesis_params_valid():
     assert sum(c.sample_rate for c in params.combination_sampling) <= 1.0
 
 
+def test_general_synthesis_params_empty_lists_normalized_to_none():
+    """Empty lists should be treated as if the attribute was not provided (None)."""
+    params = GeneralSynthesisParams(input_data=[])
+    assert params.input_data is None
+
+    params = GeneralSynthesisParams(input_documents=[])
+    assert params.input_documents is None
+
+    params = GeneralSynthesisParams(input_examples=[])
+    assert params.input_examples is None
+
+    params = GeneralSynthesisParams(sampled_attributes=[])
+    assert params.sampled_attributes is None
+
+    params = GeneralSynthesisParams(combination_sampling=[])
+    assert params.combination_sampling is None
+
+    params = GeneralSynthesisParams(generated_attributes=[])
+    assert params.generated_attributes is None
+
+    params = GeneralSynthesisParams(transformed_attributes=[])
+    assert params.transformed_attributes is None
+
+    params = GeneralSynthesisParams(multiturn_attributes=[])
+    assert params.multiturn_attributes is None
+
+    params = GeneralSynthesisParams(passthrough_attributes=[])
+    assert params.passthrough_attributes is None
+
+
 def test_general_synthesis_params_invalid():
-    # Test empty lists
-    with pytest.raises(
-        ValueError, match="GeneralSynthesisParams.input_data cannot be empty."
-    ):
-        GeneralSynthesisParams(input_data=[])
-
-    with pytest.raises(
-        ValueError, match="GeneralSynthesisParams.input_documents cannot be empty."
-    ):
-        GeneralSynthesisParams(input_documents=[])
-
-    with pytest.raises(
-        ValueError, match="GeneralSynthesisParams.input_examples cannot be empty."
-    ):
-        GeneralSynthesisParams(input_examples=[])
-
-    with pytest.raises(
-        ValueError,
-        match="GeneralSynthesisParams.sampled_attributes cannot be empty.",
-    ):
-        GeneralSynthesisParams(sampled_attributes=[])
-
-    with pytest.raises(
-        ValueError, match="GeneralSynthesisParams.combination_sampling cannot be empty."
-    ):
-        GeneralSynthesisParams(combination_sampling=[])
-
-    with pytest.raises(
-        ValueError, match="GeneralSynthesisParams.generated_attributes cannot be empty."
-    ):
-        GeneralSynthesisParams(generated_attributes=[])
-
-    with pytest.raises(
-        ValueError,
-        match="GeneralSynthesisParams.transformed_attributes cannot be empty.",
-    ):
-        GeneralSynthesisParams(transformed_attributes=[])
-
-    with pytest.raises(
-        ValueError,
-        match="GeneralSynthesisParams.passthrough_attributes cannot be empty.",
-    ):
-        GeneralSynthesisParams(passthrough_attributes=[])
-
     # Test duplicate attribute IDs
     with pytest.raises(
         ValueError, match="GeneralSynthesisParams contains duplicate attribute IDs"
@@ -629,7 +760,51 @@ def test_general_synthesis_params_invalid():
             ]
         )
 
-    # Test combination sampling rates sum > 1.0
+    reserved_ids = ["target_turns", "current_turn"]
+    for reserved_id in reserved_ids:
+        with pytest.raises(
+            ValueError,
+            match=f"GeneralSynthesisParams does not allow '{reserved_id}' as an "
+            "attribute ID",
+        ):
+            GeneralSynthesisParams(
+                generated_attributes=[
+                    GeneratedAttribute(
+                        id=reserved_id,
+                        instruction_messages=[
+                            TextMessage(role=Role.SYSTEM, content="System message"),
+                        ],
+                    )
+                ]
+            )
+
+    with pytest.raises(
+        ValueError,
+        match="GeneralSynthesisParams does not allow 'conversation_plan' "
+        "as an attribute ID because it is reserved for multiturn synthesis.",
+    ):
+        GeneralSynthesisParams(
+            generated_attributes=[
+                GeneratedAttribute(
+                    id="conversation_plan",
+                    instruction_messages=[
+                        TextMessage(role=Role.SYSTEM, content="System message"),
+                    ],
+                )
+            ],
+            multiturn_attributes=[
+                MultiTurnAttribute(
+                    id="conversation",
+                    min_turns=1,
+                    max_turns=2,
+                    role_instruction_messages={
+                        Role.USER: "You are a user.",
+                        Role.ASSISTANT: "You are an assistant.",
+                    },
+                )
+            ],
+        )
+
     with pytest.raises(
         ValueError,
         match="GeneralSynthesisParams.combination_sampling sample rates must be "

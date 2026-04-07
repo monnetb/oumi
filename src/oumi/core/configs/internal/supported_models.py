@@ -62,7 +62,7 @@ import copy
 import functools
 import types
 from collections.abc import Mapping
-from typing import Any, NamedTuple, Optional, cast
+from typing import Any, NamedTuple, cast
 
 import transformers
 
@@ -77,6 +77,7 @@ from oumi.core.configs.internal.internal_model_config import (
 from oumi.core.registry import REGISTRY, RegistryType
 from oumi.utils.cache_utils import dict_cache
 from oumi.utils.logging import logger
+from oumi.utils.packaging import is_transformers_v5
 
 
 @dict_cache
@@ -84,7 +85,7 @@ def find_model_hf_config(
     model_name: str,
     *,
     trust_remote_code: bool,
-    revision: Optional[str] = None,
+    revision: str | None = None,
     **kwargs: Any,
 ) -> transformers.PretrainedConfig:
     """Finds HF model config by model name."""
@@ -311,6 +312,14 @@ def _create_qwen3_vl_vlm_config() -> InternalModelConfig:
             for feature_name in ("image_grid_thw",)
         }
     )
+    # mm_token_type_ids is produced by the Qwen3-VL processor with a leading
+    # batch dimension that must be stripped when processing individual examples.
+    config.model_input_features["mm_token_type_ids"] = InternalFeatureSpec(
+        name="mm_token_type_ids",
+        required=False,
+        variable_shape=False,
+        first_dim_action=InternalFeatureFirstDimAction.DROP_IF_DUMMY,
+    )
     config.processor_kwargs.update(
         # Defaults per Qwen3-VL:
         # https://github.com/QwenLM/Qwen3-VL/blob/main/qwen-vl-utils/src/qwen_vl_utils/vision_process.py
@@ -489,7 +498,10 @@ def get_all_models_map() -> Mapping[
     default_vlm_config: InternalModelConfig = _create_default_vlm_config()
 
     default_llm_class = transformers.AutoModelForCausalLM
-    default_vlm_class = transformers.AutoModelForVision2Seq
+    if is_transformers_v5():
+        default_vlm_class = transformers.AutoModelForImageTextToText
+    else:
+        default_vlm_class = transformers.AutoModelForVision2Seq  # type: ignore[attr-defined]
 
     all_models_list: list[_ModelTypeInfo] = [
         _ModelTypeInfo(
@@ -570,6 +582,11 @@ def get_all_models_map() -> Mapping[
             config=_create_qwen3_vl_vlm_config(),
         ),
         _ModelTypeInfo(
+            model_type="qwen3_vl_moe",
+            model_class=default_vlm_class,
+            config=_create_qwen3_vl_vlm_config(),
+        ),
+        _ModelTypeInfo(
             model_type="vipllava",
             model_class=default_vlm_class,
             config=copy.deepcopy(default_vlm_config),
@@ -601,17 +618,38 @@ def get_all_models_map() -> Mapping[
     return types.MappingProxyType({x.model_type: x for x in all_models_list})
 
 
+def get_custom_model_type_from_path(path: str) -> str | None:
+    """Extracts model_type from a saved custom model directory's config.json."""
+    import json
+    from pathlib import Path as PathLib
+
+    config_path = PathLib(path) / "config.json"
+    if not config_path.exists():
+        return None
+
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            config_data = json.load(f)
+        model_type = config_data.get("model_type")
+        if model_type and REGISTRY.contains(name=model_type, type=RegistryType.MODEL):
+            return model_type
+    except (json.JSONDecodeError, OSError):
+        pass
+    return None
+
+
 def is_custom_model(model_name: str) -> bool:
     """Determines whether the model is a custom model defined in oumi registry."""
-    result: bool = len(model_name) > 0 and REGISTRY.contains(
-        name=model_name, type=RegistryType.MODEL
-    )
-    return result
+    if not model_name:
+        return False
+    if REGISTRY.contains(name=model_name, type=RegistryType.MODEL):
+        return True
+    return get_custom_model_type_from_path(model_name) is not None
 
 
 def find_internal_model_config_using_model_name(
     model_name: str, trust_remote_code: bool
-) -> Optional[InternalModelConfig]:
+) -> InternalModelConfig | None:
     """Finds an internal model config for supported models using model name.
 
     Args:
@@ -637,7 +675,7 @@ def find_internal_model_config_using_model_name(
 
 def find_internal_model_config(
     model_params: ModelParams,
-) -> Optional[InternalModelConfig]:
+) -> InternalModelConfig | None:
     """Finds an internal model config for supported models using `ModelParams`.
 
     Args:
