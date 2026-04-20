@@ -39,7 +39,6 @@ model:
   torch_dtype_str: "float32"
   attn_implementation: "sdpa"
   trust_remote_code: true
-  chat_template: "gemma"
 
 data:
   train:
