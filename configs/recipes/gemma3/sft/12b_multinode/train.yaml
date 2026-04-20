@@ -1,0 +1,158 @@
+# Multi-node Full Fine-tuning config for Gemma 3 12B Instruct
+# Optimized for 2x nodes with 8x H200 SXM5 GPUs each (16 GPUs total)
+# Connected via Infiniband
+#
+# Hardware Configuration:
+#   - 2 nodes x 8 H200 SXM5 GPUs = 16 GPUs
+#   - H200 SXM5: 80GB HBM3e per GPU
+#   - Infiniband interconnect between nodes
+#
+# Memory Optimization:
+#   - DeepSpeed ZeRO-3 with full parameter sharding
+#   - BF16 mixed precision for optimal throughput
+#   - Gradient checkpointing enabled
+#
+# Requirements:
+#   - transformers >= 4.50.0
+#   - Gemma license acceptance: https://huggingface.co/google/gemma-3-12b-it
+#   - Log into WandB (wandb login) or disable enable_wandb
+#   - DeepSpeed installed: pip install deepspeed
+#
+# Usage:
+#   # Single node (8 GPUs):
+#   torchrun --nnodes=1 --nproc-per-node=8 -m oumi train -c configs/recipes/gemma3/sft/12b_multinode/train.yaml
+#
+#   # Multi-node (16 GPUs - 2 nodes):
+#   # Node 0 (master):
+#   torchrun --nnodes=2 --node-rank=0 --master-addr=<master-ip> --master-port=29500 --nproc-per-node=8 -m oumi train -c configs/recipes/gemma3/sft/12b_multinode/train.yaml
+#   # Node 1:
+#   torchrun --nnodes=2 --node-rank=1 --master-addr=<master-ip> --master-port=29500 --nproc-per-node=8 -m oumi train -c configs/recipes/gemma3/sft/12b_multinode/train.yaml
+#
+# See Also:
+#   - Documentation: https://oumi.ai/docs/en/latest/user_guides/train/train.html
+#   - DeepSpeed ZeRO: https://www.deepspeed.ai/tutorials/zero/
+#   - Multi-node training: https://oumi.ai/docs/en/latest/user_guides/train/environments/slurm.html
+
+model:
+  model_name: "google/gemma-3-12b-it"
+  model_max_length: 4096
+  torch_dtype_str: "bfloat16"
+  attn_implementation: "sdpa"
+  trust_remote_code: true
+
+data:
+  train:
+    datasets:
+      # Primary dataset: UltraChat 200k (~10GB, high-quality multi-turn chat)
+      - dataset_name: "anonymous/ultrachat_200k"
+        split: "train"
+        shuffle: true
+        seed: 42
+        # Use streaming to handle large dataset efficiently
+        streaming: false
+        # Map to chat format for Gemma 3
+        data_preprocessor: "chat_template"
+      # Optional: Add more datasets for larger training corpus
+      # - dataset_name: "Open-Orca/OpenOrca"
+      #   split: "train"
+      #   shuffle: true
+      #   seed: 42
+
+training:
+  trainer_type: "TRL_SFT"
+  use_peft: false  # Full fine-tuning with DeepSpeed ZeRO-3
+  
+  # Checkpoint settings
+  save_steps: 500
+  save_epoch: false
+  save_final_model: true
+  
+  # Training epochs - adjust based on dataset size
+  num_train_epochs: 3
+  
+  # Batch size optimization for 16x H200
+  # Per-device: 2 x 16 GPUs x 4 grad_accum = 128 effective batch
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  
+  # Enable gradient checkpointing for memory efficiency
+  enable_gradient_checkpointing: true
+  gradient_checkpointing_kwargs:
+    use_reentrant: false
+  
+  # Optimizer - fused AdamW for best performance
+  optimizer: "adamw_torch_fused"
+  learning_rate: 2.0e-5
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  
+  # Mixed precision - BF16 for H100/H200
+  mixed_precision_dtype: "BF16"
+  
+  # Disable to save memory
+  compile: false
+  
+  # Data loading optimization
+  dataloader_num_workers: 8
+  dataloader_prefetch_factor: 4
+  dataloader_persistent_workers: true
+  dataloader_pin_memory: true
+  
+  # Logging
+  logging_steps: 10
+  logging_first_step: true
+  log_model_summary: false
+  empty_device_cache_steps: 100
+  output_dir: "output/gemma3_12b_multinode"
+  include_performance_metrics: true
+  enable_wandb: true
+  
+  # Distributed training settings
+  ddp_find_unused_parameters: false
+  
+  # NCCL optimization for Infiniband
+  nccl_default_timeout_minutes: 60
+  
+  # Use seedable sampler for reproducibility
+  trainer_kwargs:
+    use_seedable_sampler: true
+
+# DeepSpeed ZeRO-3 configuration optimized for 16x H200 SXM5
+deepspeed:
+  enable_deepspeed: true
+  zero_stage: "ZERO_3"
+  precision: "BF16"
+  
+  # Communication optimization for Infiniband
+  overlap_comm: true
+  contiguous_gradients: true
+  
+  # Bucket sizes optimized for large models
+  allgather_partitions: true
+  allgather_bucket_size: 200000000  # 2e8
+  reduce_scatter: true
+  reduce_bucket_size: 200000000  # 2e8
+  
+  # ZeRO-3 specific parameters
+  sub_group_size: 1000000000  # 1e9
+  stage3_prefetch_bucket_size: "auto"
+  stage3_param_persistence_threshold: "auto"
+  stage3_max_live_parameters: 1000000000  # 1e9
+  stage3_max_reuse_distance: 1000000000  # 1e9
+  stage3_gather_16bit_weights_on_model_save: false
+  
+  # Memory optimization flags
+  zero_allow_untested_optimizer: true
+  zero_force_ds_cpu_optimizer: false
+  
+  # Optional: CPU offloading if needed (for even larger models)
+  # offload_optimizer:
+  #   device: "cpu"
+  #   pin_memory: true
+  #   buffer_count: 4
+  
+  # Logging
+  steps_per_print: 10
+  wall_clock_breakdown: false
