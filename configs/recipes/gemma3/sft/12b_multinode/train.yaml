@@ -39,24 +39,16 @@ model:
   torch_dtype_str: "bfloat16"
   attn_implementation: "sdpa"
   trust_remote_code: true
+  chat_template: "gemma"
 
 data:
   train:
+    stream: false
     datasets:
-      # Primary dataset: UltraChat 200k (~10GB, high-quality multi-turn chat)
-      - dataset_name: "anonymous/ultrachat_200k"
+      - dataset_name: "yahma/alpaca-cleaned"
         split: "train"
         shuffle: true
         seed: 42
-        # Use streaming to handle large dataset efficiently
-        streaming: false
-        # Map to chat format for Gemma 3
-        data_preprocessor: "chat_template"
-      # Optional: Add more datasets for larger training corpus
-      # - dataset_name: "Open-Orca/OpenOrca"
-      #   split: "train"
-      #   shuffle: true
-      #   seed: 42
 
 training:
   trainer_type: "TRL_SFT"
