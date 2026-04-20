@@ -90,7 +90,6 @@ training:
   dataloader_num_workers: 8
   dataloader_prefetch_factor: 4
   dataloader_persistent_workers: true
-  dataloader_pin_memory: true
   
   # Logging
   logging_steps: 10
