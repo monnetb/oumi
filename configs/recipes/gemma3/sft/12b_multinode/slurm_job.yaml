@@ -1,0 +1,64 @@
+# SLURM job config for Gemma 3 12B multi-node fine-tuning
+# Runs on 2 nodes with 8x H200 SXM5 GPUs each (16 GPUs total)
+#
+# Requirements:
+#   - Set OUMI_SLURM_CONNECTIONS to your Slurm user@host
+#   - Access to HuggingFace with Gemma 3 12B model accepted
+#
+# Usage:
+#   oumi launch up -c configs/recipes/gemma3/sft/12b_multinode/slurm_job.yaml --cluster $OUMI_SLURM_CONNECTIONS --user <slurm_user>
+#
+# Or run manually with srun:
+#   sbatch configs/recipes/gemma3/sft/12b_multinode/slurm_job.yaml
+
+name: gemma3-12b-multinode
+num_nodes: 2
+
+resources:
+  cloud: slurm
+
+working_dir: .
+
+envs:
+  # Disable tokenizers parallelism warning
+  TOKENIZERS_PARALLELISM: false
+  # NCCL optimizations for Infiniband
+  NCCL_IB_DISABLE: 0
+  NCCL_NET_GDR_LEVEL: 2
+  NCCL_IB_GID_INDEX: 3
+
+setup: |
+  #SBATCH --ntasks-per-node=1
+  #SBATCH --cpus-per-task=16
+  #SBATCH --gpus-per-task=8
+  #SBATCH --mem-per-gpu=80G
+  #SBATCH --time=04:00:00
+  #SBATCH --partition=gpu
+  #SBATCH --constraint=h200
+  #SBATCH --ntasks-per-node=8
+
+  set -e
+
+  # Initialize SLURM environment variables for multi-node
+  source ./configs/examples/misc/slurm_init.sh
+
+  # Activate conda environment
+  source ~/miniconda3/etc/profile.d/conda.sh
+  conda activate oumi
+
+  # Install/verify dependencies
+  pip install uv && uv pip install --system 'oumi[gpu]'
+  pip install deepspeed
+
+run: |
+  # Run multi-node training with torchrun
+  torchrun \
+    --nnodes=${SLURM_JOB_NUM_NODES} \
+    --node-rank=${SLURM_PROCID} \
+    --nproc-per-node=${SLURM_GPUS_ON_NODE} \
+    --master-addr=${OUMI_MASTER_ADDR} \
+    --master-port=29500 \
+    -m oumi train \
+    -c configs/recipes/gemma3/sft/12b_multinode/train.yaml
+
+  echo "Training complete!"
